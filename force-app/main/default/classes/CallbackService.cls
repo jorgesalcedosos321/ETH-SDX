@@ -12,9 +12,8 @@ public inherited sharing class CallbackService {
 
         List<npe03__Recurring_Donation__c> recurringDonations = [
             SELECT Id
-                   //, Recurring_UUID__c
             FROM npe03__Recurring_Donation__c
-            //TODO: WHERE Recurring_UUID__c = :request.recurringUUID
+            WHERE Donation_ID__c = :request.recurringUUID
         ];
 
         if (recurringDonations.isEmpty()) {
@@ -35,9 +34,39 @@ public inherited sharing class CallbackService {
 
         if (!payments.isEmpty()) {
             npe01__OppPayment__c payment = payments[0];
-            // Future implementation:
-            // payment.Payment_Status__c = request.paymentStatus;
-            // payment.Reference_Id__c = request.referenceId;
+
+            boolean isPaid = String.isNotBlank(request.paymentStatus)
+                ? request.paymentStatus.equalsIgnoreCase('success')
+                : false;
+            boolean isFailure = String.isNotBlank(request.paymentStatus)
+                ? request.paymentStatus.equalsIgnoreCase('failure')
+                : false;
+            boolean isPending = String.isNotBlank(request.paymentStatus)
+                ? request.paymentStatus.equalsIgnoreCase('pending')
+                : false;
+
+            payment.Status__c = isPaid ? 'Paid' : isFailure ? 'Failed' : 'Pending';
+
+            payment.npe01__Paid__c = false;
+            payment.npe01__Written_Off__c = false;
+
+            if (isPaid) {
+                payment.npe01__Paid__c = true;
+            }
+            if (isFailure) {
+                payment.npe01__Written_Off__c = true;
+            }
+
+            payment.npe01__Payment_Date__c = request.transactionDate;
+            payment.npsp__Card_Expiration_Month__c = request.cardExpiryMonth;
+            payment.npsp__Card_Expiration_Year__c = request.cardExpiryYear;
+            payment.npsp__Card_Network__c = request.creditCardType != null
+                ? request.creditCardType
+                : request.cardNetwork;
+            payment.AccountNumber = request.cardLast4Digits != null
+                ? request.cardLast4Digits
+                : request.cardLast4;
+            payment.Reference_Id__c = request.referenceId;
             UPDATE payment;
         }
 

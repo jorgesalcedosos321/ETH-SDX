@@ -12,8 +12,12 @@ public class ArifPayCallbackRequest {
     public String paymentMethod;
     public String cardHolder;
     public String cardNetwork;
+    public String creditCardType;
     public String cardLast4;
+    public String cardLast4Digits;
     public Integer expiryMonth;
     public Integer expiryYear;
+    public Integer cardExpiryMonth;
+    public Integer cardExpiryYear;
     public String currencyEN;
 }

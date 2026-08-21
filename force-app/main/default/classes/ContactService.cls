@@ -30,8 +30,8 @@ public with sharing class ContactService {
                    Email,
                    Phone
             FROM Contact
-            WHERE Email = :request.email
-            LIMIT 1
+            WHERE (FirstName = :request.firstName AND LastName = :request.lastName AND Email = :request.email) OR 
+                  (FirstName = :request.firstName AND LastName = :request.lastName AND Phone = :request.phone)
         ];
 
         return contacts.isEmpty()

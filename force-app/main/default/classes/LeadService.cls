@@ -12,6 +12,51 @@
 **/
 
 public with sharing class LeadService {
+    /**
+     * Searches for an existing lead.
+     */
+    private static Lead findlead(DonationRequest request) {
+
+        List<Lead> leads = [
+            SELECT Id,
+                   AccountId,
+                   FirstName,
+                   LastName,
+                   Email,
+                   Phone
+            FROM Lead
+            WHERE (FirstName = :request.firstName AND LastName = :request.lastName AND Email = :request.email) OR 
+                  (FirstName = :request.firstName AND LastName = :request.lastName AND Phone = :request.phone)
+        ];
+
+        return leads.isEmpty()
+            ? null
+            : leads[0];
+    }
+
+    /**
+     * Builds a new lead.
+     */
+    private static Lead buildLead(DonationRequest request) {
+
+        Lead lead = new Lead();
+
+        lead.Salutation = request.salutation;
+        lead.FirstName = request.firstName;
+        lead.LastName = request.lastName;
+        lead.Email = request.email;
+        lead.Phone = request.phone;
+        lead.Birthdate = request.birthday;
+
+        lead.MailingStreet = request.mailingStreet;
+        lead.MailingCity = request.mailingCity;
+        lead.MailingCountry = request.mailingCountry;
+
+        lead.HasOptedOutOfEmail = request.emailOptOut;
+
+        return lead;
+    }
+
     public static void setDefaultCompanyNameIfEmpty(List<Lead> newLeads) {
         for (Lead newLead : newLeads) {
             if (newLead.Company == NULL || newLead.Company == '' || newLead.Company == '-') {
