@@ -1,0 +1,19 @@
+/**
+ * Callback received from ArifPay.
+ */
+//SFESWCSD-92
+public class ArifPayCallbackRequest {
+    public String donationId;
+    public String recurringUUID;
+    public String paymentStatus;
+    public Decimal amount;
+    public Datetime transactionDate;
+    public String referenceId;
+    public String paymentMethod;
+    public String cardHolder;
+    public String cardNetwork;
+    public String cardLast4;
+    public Integer expiryMonth;
+    public Integer expiryYear;
+    public String currencyEN;
+}

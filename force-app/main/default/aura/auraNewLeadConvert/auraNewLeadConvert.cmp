@@ -1,0 +1,34 @@
+<aura:component implements="force:lightningQuickAction,force:hasRecordId" access="global" controller="LeadConversionController">
+    <aura:attribute name="recordId" type="String" />
+    <aura:attribute name="lead" type="Lead" />
+    <aura:attribute name="conversionMessage" type="String" default="" />
+    <aura:attribute name="isError" type="Boolean" default="false" />
+    <aura:attribute name="isAlreadyConverted" type="Boolean" default="false" />
+    <aura:attribute name="loading" type="Boolean" default="false" />
+    <aura:attribute name="showRT" type="Boolean" default="false" />    
+    <aura:attribute name="disableButton" type="Boolean" default="false" />        
+    <aura:attribute name="options" type="List" default="[]"/>
+    <aura:attribute name="selectedOptionValue" type="String" default="" />
+    
+    <!-- Load the Lead data when component is initialized -->
+    <aura:handler name="init" value="{!this}" action="{!c.loadLeadData}" />
+	<lightning:spinner variant="brand" alternativeText="Loading..." class="{!(v.loading ? 'slds-show': 'slds-hide')}" />
+
+    <!-- Display the Lead's data -->
+    <lightning:input label="Salutation" value="{!v.lead.Salutation}" disabled="true" />
+    <lightning:input label="First Name" value="{!v.lead.FirstName}" disabled="true" />
+    <lightning:input label="Last Name" value="{!v.lead.LastName}" disabled="true" />
+    <lightning:input label="Email" value="{!v.lead.Email}" disabled="true" />
+    <lightning:input label="Phone" value="{!v.lead.Phone}" disabled="true"  />
+    <lightning:input label="Lead Source" value="{!v.lead.LeadSource}" disabled="true" />
+    <lightning:input label="Company" value="{!v.lead.Company}" disabled="true" />
+    <lightning:input type="checkbox" label="Creates opportunity?" name="opps" value="1" aura:id="opps" checked="{!v.showRT}" />
+    <lightning:combobox name="oppRts" label="Opportunity RT" value="{!v.selectedOptionValue}" options="{! v.options }" class="{!(v.showRT ? 'slds-show': 'slds-hide')}"/>
+
+    <!-- Button to trigger Lead conversion -->
+    <div class="slds-align_absolute-center" style="height:5rem">
+    	<lightning:button label="Convert Lead" onclick="{!c.convertLead}" variant="brand" disabled="{!v.disableButton}"/>
+	</div>
+    <!-- Display message after conversion
+    <lightning:formattedText value="{!v.conversionMessage}" /> -->
+</aura:component>
