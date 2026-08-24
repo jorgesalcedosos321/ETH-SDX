@@ -67,6 +67,7 @@ public inherited sharing class CallbackService {
                 ? request.cardLast4Digits
                 : request.cardLast4;
             payment.Reference_Id__c = request.referenceId;
+            payment.Credit_Card_Holder__c = request.cardHolder;
             UPDATE payment;
         }
 

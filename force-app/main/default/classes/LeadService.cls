@@ -19,7 +19,6 @@ public with sharing class LeadService {
 
         List<Lead> leads = [
             SELECT Id,
-                   AccountId,
                    FirstName,
                    LastName,
                    Email,
@@ -46,11 +45,11 @@ public with sharing class LeadService {
         lead.LastName = request.lastName;
         lead.Email = request.email;
         lead.Phone = request.phone;
-        lead.Birthdate = request.birthday;
+        lead.Birthdate__c = request.birthday;
 
-        lead.MailingStreet = request.mailingStreet;
-        lead.MailingCity = request.mailingCity;
-        lead.MailingCountry = request.mailingCountry;
+        lead.Mailing__Street__s = request.mailingStreet;
+        lead.Mailing__City__s = request.mailingCity;
+        //lead.Mailing__Country__s = request.mailingCountry;
 
         lead.HasOptedOutOfEmail = request.emailOptOut;
 

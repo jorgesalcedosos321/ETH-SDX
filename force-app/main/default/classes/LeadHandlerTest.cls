@@ -17,7 +17,7 @@ private class LeadHandlerTest {
         newLead.FirstName = 'FirstName Test 2';
         newLead.LastName = 'LastName Test 2';
         newLead.Company = 'ACME';
-        newLead.Donation_Type__c = 'Recurring Donation';
+        //newLead.Donation_Type__c = 'Recurring Donation';
         newLead.Installment_Frequency__c = 'Monthly';
         leads.add(newLead);
         INSERT leads;
