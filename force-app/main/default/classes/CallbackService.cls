@@ -57,16 +57,16 @@ public inherited sharing class CallbackService {
                 payment.npe01__Written_Off__c = true;
             }
 
-            payment.npe01__Payment_Date__c = request.transactionDate;
-            payment.npsp__Card_Expiration_Month__c = request.cardExpiryMonth;
-            payment.npsp__Card_Expiration_Year__c = request.cardExpiryYear;
+            payment.npe01__Payment_Date__c = request.transactionDate.date();
+            payment.npsp__Card_Expiration_Month__c = request.cardExpiryMonth + '';
+            payment.npsp__Card_Expiration_Year__c = request.cardExpiryYear + '';
             payment.npsp__Card_Network__c = request.creditCardType != null
                 ? request.creditCardType
                 : request.cardNetwork;
-            payment.AccountNumber = request.cardLast4Digits != null
+            payment.Credit_Card_Number__c = request.cardLast4Digits != null
                 ? request.cardLast4Digits
                 : request.cardLast4;
-            payment.Reference_Id__c = request.referenceId;
+            payment.npe01__Check_Reference_Number__c = request.referenceId;
             payment.Credit_Card_Holder__c = request.cardHolder;
             UPDATE payment;
         }

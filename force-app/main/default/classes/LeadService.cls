@@ -17,15 +17,14 @@ public with sharing class LeadService {
      */
     private static Lead findlead(DonationRequest request) {
 
-        List<Lead> leads = [
-            SELECT Id,
+        List<Lead> leads = [SELECT Id,
                    FirstName,
                    LastName,
                    Email,
                    Phone
             FROM Lead
             WHERE (FirstName = :request.firstName AND LastName = :request.lastName AND Email = :request.email) OR 
-                  (FirstName = :request.firstName AND LastName = :request.lastName AND Phone = :request.phone)
+            (FirstName = :request.firstName AND LastName = :request.lastName AND Phone = :request.phone)
         ];
 
         return leads.isEmpty()
