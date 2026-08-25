@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Child_Data_Safeguarding__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>I agree to protect the right to privacy of the child I sponsor.</description>
+    <inlineHelpText>I agree to protect the right to privacy of the child I sponsor.</inlineHelpText>
+    <label>Child Data Safeguarding</label>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>Checkbox</type>
+</CustomField>

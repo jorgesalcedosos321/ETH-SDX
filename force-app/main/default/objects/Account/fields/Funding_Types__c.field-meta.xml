@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Funding_Types__c</fullName>
+    <label>Funding Types</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>MultiselectPicklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>General Grants</fullName>
+                <default>false</default>
+                <label>General Grants</label>
+            </value>
+            <value>
+                <fullName>Project-Specific Grants</fullName>
+                <default>false</default>
+                <label>Project-Specific Grants</label>
+            </value>
+            <value>
+                <fullName>Research Grants</fullName>
+                <default>false</default>
+                <label>Research Grants</label>
+            </value>
+            <value>
+                <fullName>Sponsorship</fullName>
+                <default>false</default>
+                <label>Sponsorship</label>
+            </value>
+            <value>
+                <fullName>In-Kind Contribution</fullName>
+                <default>false</default>
+                <label>In-Kind Contribution</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+    <visibleLines>4</visibleLines>
+</CustomField>

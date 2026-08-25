@@ -7,6 +7,7 @@ global class CloseStalePledgedOpportunitiesBatch implements Database.Batchable<S
             FROM Opportunity
             WHERE StageName = :ApiConstants.STAGE_PLEDGED
             AND CreatedDate <= :cutoff
+            AND (npsp__Recurring_Donation_Installment_Number__c = 1 OR Donation_Type__c = 'One-time Donation')
         ]);
     }
 
@@ -14,7 +15,7 @@ global class CloseStalePledgedOpportunitiesBatch implements Database.Batchable<S
         List<Opportunity> oppsToClose = new List<Opportunity>();
 
         for (Opportunity opp : scope) {
-            opp.StageName = 'Closed Lost';
+            opp.StageName = ApiConstants.STAGE_CLOSED_LOST;
             oppsToClose.add(opp);
         }
 

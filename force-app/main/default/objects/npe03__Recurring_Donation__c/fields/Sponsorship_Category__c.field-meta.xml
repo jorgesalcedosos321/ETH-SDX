@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sponsorship_Category__c</fullName>
+    <label>Sponsorship Category</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <controllingField>Sponsorship_Type__c</controllingField>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Boy</fullName>
+                <default>false</default>
+                <label>Boy</label>
+            </value>
+            <value>
+                <fullName>Girl</fullName>
+                <default>false</default>
+                <label>Girl</label>
+            </value>
+            <value>
+                <fullName>Either</fullName>
+                <default>false</default>
+                <label>Either</label>
+            </value>
+            <value>
+                <fullName>Family of 4</fullName>
+                <default>false</default>
+                <label>Family of 4</label>
+            </value>
+            <value>
+                <fullName>Family of 6</fullName>
+                <default>false</default>
+                <label>Family of 6</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other</label>
+            </value>
+            <value>
+                <fullName>School Fees</fullName>
+                <default>false</default>
+                <label>School Fees</label>
+            </value>
+            <value>
+                <fullName>Uniform</fullName>
+                <default>false</default>
+                <label>Uniform</label>
+            </value>
+            <value>
+                <fullName>Stationary</fullName>
+                <default>false</default>
+                <label>Stationary</label>
+            </value>
+            <value>
+                <fullName>Transport</fullName>
+                <default>false</default>
+                <label>Transport</label>
+            </value>
+            <value>
+                <fullName>Stationery</fullName>
+                <default>false</default>
+                <label>Stationery</label>
+            </value>
+            <value>
+                <fullName>SchoolFees</fullName>
+                <default>false</default>
+                <label>SchoolFees</label>
+            </value>
+        </valueSetDefinition>
+        <valueSettings>
+            <controllingFieldValue>Child</controllingFieldValue>
+            <valueName>Boy</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Child</controllingFieldValue>
+            <valueName>Girl</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Child</controllingFieldValue>
+            <valueName>Either</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Family</controllingFieldValue>
+            <valueName>Family of 4</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Family</controllingFieldValue>
+            <valueName>Family of 6</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Family</controllingFieldValue>
+            <valueName>Other</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Education</controllingFieldValue>
+            <valueName>School Fees</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Education</controllingFieldValue>
+            <valueName>Uniform</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Education</controllingFieldValue>
+            <valueName>Stationary</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Education</controllingFieldValue>
+            <valueName>Transport</valueName>
+        </valueSettings>
+    </valueSet>
+</CustomField>

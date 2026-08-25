@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sponsorship_Type__c</fullName>
+    <description>Defines the type of sponsorship the donor wants to provide (Child, Family, or Education).</description>
+    <inlineHelpText>Select the type of sponsorship you would like to support: Sponsor an individual child, support a family in need, contribute to education-related expenses.</inlineHelpText>
+    <label>Sponsorship Type</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Picklist</type>
+    <valueSet>
+        <controllingField>Donation_Type__c</controllingField>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Child</fullName>
+                <default>false</default>
+                <label>Child</label>
+            </value>
+            <value>
+                <fullName>Family</fullName>
+                <default>false</default>
+                <label>Family</label>
+            </value>
+            <value>
+                <fullName>Education</fullName>
+                <default>false</default>
+                <label>Education</label>
+            </value>
+        </valueSetDefinition>
+        <valueSettings>
+            <controllingFieldValue>Sponsorship</controllingFieldValue>
+            <valueName>Child</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Sponsorship</controllingFieldValue>
+            <valueName>Family</valueName>
+        </valueSettings>
+        <valueSettings>
+            <controllingFieldValue>Sponsorship</controllingFieldValue>
+            <valueName>Education</valueName>
+        </valueSettings>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>HasOptedOutOfEmail</fullName>
+    <description>I would like to receive email newsletters and updates from SOS Children&apos;s Villages Ethiopia</description>
+    <inlineHelpText>I would like to receive email newsletters and updates from SOS Children&apos;s Villages Ethiopia</inlineHelpText>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>true</trackHistory>
+</CustomField>
