@@ -37,8 +37,11 @@ public class RecurringDonationService implements IRecurringDonationService {
     public static DonationResponse registerDonation(DonationRequest request) {
         ValidationService.validate(request);
 
-        Contact contact =
-            ContactService.createOrUpdate(request);
+        Boolean isCorporate = isCorporateDonor(request);
+
+        Contact contact = isCorporate
+            ? null
+            : ContactService.createOrUpdate(request);
 
         Account account =
             AccountService.createOrUpdate(request, contact);
@@ -47,7 +50,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             OpportunityService.createDonation(
                 request,
                 account.Id,
-                contact.Id
+                contact == null ? null : contact.Id
             );
 
         npe03__Recurring_Donation__c recurringDonation;
@@ -57,7 +60,7 @@ public class RecurringDonationService implements IRecurringDonationService {
                 create(
                     request,
                     opportunity.Id,
-                    contact.Id
+                    isCorporate ? account.Id : contact.Id
                 );
 
         }
@@ -90,9 +93,12 @@ public class RecurringDonationService implements IRecurringDonationService {
         DonationRequest request
     ) {        
         ValidationService.validate(request);
-        
+        Boolean isCorporate = isCorporateDonor(request);
+
         // Create or update Contact
-        Contact contact = ContactService.createOrUpdate(request);
+        Contact contact = isCorporate
+            ? null
+            : ContactService.createOrUpdate(request);
         
         // Create or update Account
         Account account = AccountService.createOrUpdate(
@@ -104,7 +110,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         npe03__Recurring_Donation__c recurringDonation =
             RecurringDonationService.createSponsorship(
                 request,
-                contact.Id
+                isCorporate ? account.Id : contact.Id
             );
         
         // Create Sponsorship Opportunity
@@ -143,17 +149,17 @@ public class RecurringDonationService implements IRecurringDonationService {
             new npe03__Recurring_Donation__c();
         
         // Standard NPSP fields
-        recurringDonation.npe03__Contact__c = contactId;
-        recurringDonation.npe03__Amount__c = request.amount;
+        setRecurringDonor(recurringDonation, request, contactId);
+        recurringDonation.npe03__Amount__c = request.donationAmount;
         
         if (request.dateEstablished != null) {
             recurringDonation.npe03__Date_Established__c =
                 request.dateEstablished;
         }
         
-        if (!String.isBlank(request.installmentPeriod)) {
+        if (!String.isBlank(request.frequency)) {
             recurringDonation.npe03__Installment_Period__c =
-                request.installmentPeriod;
+                request.frequency;
         }
         
         if (!String.isBlank(request.paymentMethod)) {
@@ -218,8 +224,8 @@ public class RecurringDonationService implements IRecurringDonationService {
         npe03__Recurring_Donation__c rd =
             new npe03__Recurring_Donation__c();
 
-        rd.npe03__Contact__c = contactId;
-        rd.npe03__Amount__c = request.amount;
+        setRecurringDonor(rd, request, contactId);
+        rd.npe03__Amount__c = request.donationAmount;
 
         if (request.dateEstablished != null) {
             rd.npe03__Date_Established__c = request.dateEstablished;
@@ -231,6 +237,25 @@ public class RecurringDonationService implements IRecurringDonationService {
         rd.Payment_Type__c = request.paymentType;
 
         return rd;
+    }
+
+    private static Boolean isCorporateDonor(DonationRequest request) {
+        return String.isNotBlank(request.donorType) &&
+            request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE);
+    }
+
+    private static void setRecurringDonor(
+        npe03__Recurring_Donation__c recurringDonation,
+        DonationRequest request,
+        Id donorId
+    ) {
+        if (isCorporateDonor(request)) {
+            recurringDonation.npe03__Organization__c = donorId;
+            recurringDonation.Donor_Type__c = ApiConstants.DONOR_CORPORATE;
+        } else {
+            recurringDonation.npe03__Contact__c = donorId;
+            recurringDonation.Donor_Type__c = ApiConstants.DONOR_INDIVIDUAL;
+        }
     }
     
     public void closeOldRDs(List<npe03__Recurring_Donation__c> newRecords) {

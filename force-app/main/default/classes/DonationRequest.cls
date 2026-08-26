@@ -18,9 +18,10 @@ public class DonationRequest {
     public String sponsorshipId;
 
     // Donation
-    public Decimal amount;
-    public String installmentPeriod;
+    public Decimal donationAmount;
+    public String frequency;
     public Date dateEstablished;
+    public String company;
 
     // Contact
     public String salutation;

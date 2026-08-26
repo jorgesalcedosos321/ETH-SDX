@@ -28,7 +28,7 @@ public class PaymentTriggerService implements IPaymentTriggerService {
             new npe01__OppPayment__c();
 
         payment.npe01__Opportunity__c = opportunityId;
-        payment.npe01__Payment_Amount__c = request.amount;
+        payment.npe01__Payment_Amount__c = request.donationAmount;
         payment.npe01__Scheduled_Date__c = Date.today();
         return payment;
     }

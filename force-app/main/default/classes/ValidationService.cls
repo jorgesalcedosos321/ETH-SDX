@@ -21,23 +21,31 @@ public inherited sharing class ValidationService {
             throw new DonationValidationException('Donor Type is required.');
         }
 
-        if (String.isBlank(request.firstName)) {
-            throw new DonationValidationException('First Name is required.');
-        }
+        if (request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE)) {
+            if (String.isBlank(request.accountName)) {
+                throw new DonationValidationException(
+                    'Account name is required for corporate donors.'
+                );
+            }
+        } else {
+            if (String.isBlank(request.firstName)) {
+                throw new DonationValidationException('First Name is required.');
+            }
 
-        if (String.isBlank(request.lastName)) {
-            throw new DonationValidationException('Last Name is required.');
-        }
+            if (String.isBlank(request.lastName)) {
+                throw new DonationValidationException('Last Name is required.');
+            }
 
-        if (String.isBlank(request.email)) {
-            throw new DonationValidationException('Email is required.');
+            if (String.isBlank(request.email)) {
+                throw new DonationValidationException('Email is required.');
+            }
         }
 
     }
 
     private static void validateDonation(DonationRequest request) {
 
-        if (request.amount == null || request.amount <= 0) {
+        if (request.donationAmount == null || request.donationAmount <= 0) {
             throw new DonationValidationException('Amount must be greater than zero.');
         }
 

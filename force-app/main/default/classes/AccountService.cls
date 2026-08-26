@@ -11,7 +11,7 @@ public inherited sharing class AccountService {
         Contact contact
     ) {
 
-        if (contact.AccountId != null) {
+        if (contact != null && contact.AccountId != null) {
             return [
                 SELECT Id, Name
                 FROM Account
@@ -20,12 +20,22 @@ public inherited sharing class AccountService {
             ];
         }
 
+        if (isCorporate(request)) {
+            Account existingAccount = findCorporateAccount(request);
+
+            if (existingAccount != null) {
+                return existingAccount;
+            }
+        }
+
         Account account = buildAccount(request);
 
         insert account;
 
-        contact.AccountId = account.Id;
-        update contact;
+        if (contact != null) {
+            contact.AccountId = account.Id;
+            update contact;
+        }
 
         return account;
     }
@@ -39,14 +49,57 @@ public inherited sharing class AccountService {
 
         Account account = new Account();
 
-        if (request.donorType == ApiConstants.DONOR_CORPORATE) {
+        if (isCorporate(request)) {
             account.Name = request.accountName;
+            account.Email__c = request.email;
+            account.Phone = request.phone;
         } else {
             account.Name =
                 request.firstName + ' ' + request.lastName;
         }
 
         return account;
+    }
+
+    private static Account findCorporateAccount(DonationRequest request) {
+        List<Account> accounts;
+        Boolean hasEmail = String.isNotBlank(request.email);
+        Boolean hasPhone = String.isNotBlank(request.phone);
+
+        if (hasEmail && hasPhone) {
+            accounts = [
+                SELECT Id, Name, Email__c, Phone
+                FROM Account
+                WHERE Name = :request.accountName
+                    AND (Email__c = :request.email OR Phone = :request.phone)
+                LIMIT 1
+            ];
+        } else if (hasEmail) {
+            accounts = [
+                SELECT Id, Name, Email__c, Phone
+                FROM Account
+                WHERE Name = :request.accountName
+                    AND Email__c = :request.email
+                LIMIT 1
+            ];
+        } else if (hasPhone) {
+            accounts = [
+                SELECT Id, Name, Email__c, Phone
+                FROM Account
+                WHERE Name = :request.accountName
+                    AND Phone = :request.phone
+                LIMIT 1
+            ];
+        } else {
+            return null;
+        }
+
+        return accounts.isEmpty() ? null : accounts[0];
+    }
+
+    private static Boolean isCorporate(DonationRequest request) {
+        return request.donorType != null &&
+            request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE);
     }
 
 }
