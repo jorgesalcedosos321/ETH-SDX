@@ -16,7 +16,7 @@ public class ApiConstants {
     // Donation Types
     // ---------------------------------------------------------------------
     public static final String DONATION_ONE_OFF     = 'OneOff';
-    public static final String DONATION_RECURRING   = 'Recurring';
+    public static final String DONATION_RECURRING   = 'Recurring Donation';
     public static final String DONATION_SPONSORSHIP = 'Sponsorship';
 
     // ---------------------------------------------------------------------

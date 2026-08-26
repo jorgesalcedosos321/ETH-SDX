@@ -285,7 +285,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             sequence = '0' + sequence;
         }
 
-        return '020-' + villageCode + '-' +sequence;
+        return '020' + villageCode + sequence;
     }
 
     private static String getVillageCode(String sponsorshipLocation) {
