@@ -49,29 +49,25 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         Id accountId = isCorporate ? account.Id : contact.AccountId;
 
-        Opportunity opportunity =
-            OpportunityService.createDonation(
-                request,
-                accountId,
-                contact == null ? null : contact.Id
-            );
-
+        Opportunity opportunity;
         npe03__Recurring_Donation__c recurringDonation;
 
         if (ApiConstants.FREQUENCY_MONTHLY == request.frequency) {
             recurringDonation =
                 create(
                     request,
-                    opportunity.Id,
+                    null,
                     isCorporate ? account.Id : contact.Id
                 );
-        }
-
-        npe01__OppPayment__c payment =
-            PaymentTriggerService.create(
+            opportunity = getGeneratedOpportunity(recurringDonation.Id);
+        } else {
+            opportunity = OpportunityService.createDonation(
                 request,
-                opportunity.Id
+                accountId,
+                contact == null ? null : contact.Id
             );
+            PaymentTriggerService.create(request, opportunity.Id);
+        }
 
         DonationResponse response =
             new DonationResponse();
@@ -108,8 +104,6 @@ public class RecurringDonationService implements IRecurringDonationService {
             ? AccountService.createOrUpdate(request)
             : null;
 
-        Id accountId = isCorporate ? account.Id : contact.AccountId;
-        
         // Sponsorships are always recurring
         npe03__Recurring_Donation__c recurringDonation =
             RecurringDonationService.createSponsorship(
@@ -117,20 +111,7 @@ public class RecurringDonationService implements IRecurringDonationService {
                 isCorporate ? account.Id : contact.Id
             );
         
-        // Create Sponsorship Opportunity
-        Opportunity opportunity =
-            OpportunityService.createSponsorship(
-                request,
-                accountId,
-                recurringDonation.Id
-            );
-        
-        // Create first scheduled payment
-        npe01__OppPayment__c payment =
-            PaymentTriggerService.create(
-                request,
-                opportunity.Id
-            );
+        Opportunity opportunity = getGeneratedOpportunity(recurringDonation.Id);
         
         DonationResponse response = new DonationResponse();
         response.success = true;
@@ -155,6 +136,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         // Standard NPSP fields
         setRecurringDonor(recurringDonation, request, contactId);
         recurringDonation.npe03__Amount__c = request.donationAmount;
+        recurringDonation.npe03__Open_Ended_Status__c = 'Open';
         
         if (request.dateEstablished != null) {
             recurringDonation.npe03__Date_Established__c =
@@ -231,6 +213,8 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         setRecurringDonor(rd, request, contactId);
         rd.npe03__Amount__c = request.donationAmount;
+        rd.npe03__Open_Ended_Status__c = 'Open';
+        rd.npe03__Installment_Period__c = request.frequency;
 
         if (request.dateEstablished != null) {
             rd.npe03__Date_Established__c = request.dateEstablished;
@@ -239,9 +223,28 @@ public class RecurringDonationService implements IRecurringDonationService {
         // Custom fields
         rd.Donation_Id__c = request.recurringUUID;
         rd.npsp__PaymentMethod__c = request.paymentMethod;
-        rd.Payment_Type__c = request.paymentType;
+        rd.Payment_Type__c = request.paymentMethod;
+        rd.Donation_Type__c = 'Recurring Donation';
 
         return rd;
+    }
+
+    private static Opportunity getGeneratedOpportunity(Id recurringDonationId) {
+        List<Opportunity> opportunities = [
+            SELECT Id, AccountId, npe03__Recurring_Donation__c
+            FROM Opportunity
+            WHERE npe03__Recurring_Donation__c = :recurringDonationId
+            ORDER BY CreatedDate ASC
+            LIMIT 1
+        ];
+
+        if (opportunities.isEmpty()) {
+            throw new DonationException(
+                'NPSP did not create an Opportunity for the Recurring Donation.'
+            );
+        }
+
+        return opportunities[0];
     }
 
     private static Boolean isCorporateDonor(DonationRequest request) {

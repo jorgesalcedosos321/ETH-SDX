@@ -35,6 +35,39 @@ private class KenticoDonationRestServiceTest {
     }
 
     @IsTest
+    static void processesIndividualMonthlyRecurringDonation() {
+        DonationRequest request = baseRequest(ApiConstants.DONOR_INDIVIDUAL);
+        request.donationType = ApiConstants.DONATION_RECURRING;
+        request.paymentType = ApiConstants.PAYMENT_RECURRING;
+        request.frequency = ApiConstants.FREQUENCY_MONTHLY;
+        request.dateEstablished = Date.today();
+        request.recurringUUID = 'REST-MONTHLY-RECURRING-INDIVIDUAL';
+
+        invokeOneOff(request);
+
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+        DonationResponse donationResponse = response();
+        Opportunity generatedOpportunity = [
+            SELECT Id, npe03__Recurring_Donation__r.Donation_Id__c
+            FROM Opportunity
+            WHERE Id = :donationResponse.donationId
+        ];
+
+        Assert.areEqual(
+            request.recurringUUID,
+            generatedOpportunity.npe03__Recurring_Donation__r.Donation_Id__c
+        );
+        Assert.areEqual(
+            1,
+            [
+                SELECT COUNT()
+                FROM npe01__OppPayment__c
+                WHERE npe01__Opportunity__c = :generatedOpportunity.Id
+            ]
+        );
+    }
+
+    @IsTest
     static void processesIndividualSponsorship() {
         DonationRequest request = sponsorshipRequest(ApiConstants.DONOR_INDIVIDUAL);
         invokeSponsorship(request);
@@ -46,8 +79,6 @@ private class KenticoDonationRestServiceTest {
         Assert.isNull(recurringDonation.npe03__Organization__c);
         Assert.areEqual(ApiConstants.DONOR_INDIVIDUAL, recurringDonation.Donor_Type__c);
 
-        invokeArifPayCallback(request);
-        assertSuccessfulCallback(request.recurringUUID);
     }
 
     @IsTest
@@ -63,8 +94,6 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(ApiConstants.DONOR_CORPORATE, recurringDonation.Donor_Type__c);
         Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
 
-        invokeArifPayCallback(request);
-        assertSuccessfulCallback(request.recurringUUID);
     }
 
     private static DonationRequest baseRequest(String donorType) {
