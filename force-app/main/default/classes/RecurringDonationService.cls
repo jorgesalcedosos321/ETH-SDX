@@ -58,15 +58,14 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         npe03__Recurring_Donation__c recurringDonation;
 
-        //if (ApiConstants.PAYMENT_RECURRING == request.paymentType) {
+        if (ApiConstants.FREQUENCY_MONTHLY == request.frequency) {
             recurringDonation =
                 create(
                     request,
                     opportunity.Id,
                     isCorporate ? account.Id : contact.Id
                 );
-
-        //}
+        }
 
         npe01__OppPayment__c payment =
             PaymentTriggerService.create(
@@ -204,9 +203,9 @@ public class RecurringDonationService implements IRecurringDonationService {
         Id opportunityId,
         Id contactId
     ) {
-        //if (request.paymentType != ApiConstants.PAYMENT_RECURRING) {
-        //    return null;
-        //}
+        if (request.frequency != ApiConstants.FREQUENCY_MONTHLY) {
+            return null;
+        }
 
         npe03__Recurring_Donation__c recurringDonation =
             buildRecurringDonation(

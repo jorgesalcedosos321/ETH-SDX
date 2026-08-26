@@ -47,6 +47,11 @@ public class ApiConstants {
     public static final String PAYMENT_ONE_TIME = 'One Time';
     public static final String PAYMENT_RECURRING = 'Recurring';
 
+    // Frequency
+    // ---------------------------------------------------------------------
+    public static final String FREQUENCY_MONTHLY = 'Monthly';
+    public static final String FREQUENCY_ONE_OFF = 'One Off';
+
     // ---------------------------------------------------------------------
     // Payment Statuses
     // ---------------------------------------------------------------------
