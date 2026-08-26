@@ -78,6 +78,12 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(donor.Id, recurringDonation.npe03__Contact__c);
         Assert.isNull(recurringDonation.npe03__Organization__c);
         Assert.areEqual(ApiConstants.DONOR_INDIVIDUAL, recurringDonation.Donor_Type__c);
+        Assert.areEqual('0205020001', recurringDonation.Sponsorship_ID__c);
+
+        request.recurringUUID = request.recurringUUID + '-SECOND';
+        npe03__Recurring_Donation__c secondSponsorship =
+            RecurringDonationService.createSponsorship(request, donor.Id);
+        Assert.areEqual('0205020002', secondSponsorship.Sponsorship_ID__c);
 
     }
 
@@ -92,6 +98,7 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(donor.Id, recurringDonation.npe03__Organization__c);
         Assert.isNull(recurringDonation.npe03__Contact__c);
         Assert.areEqual(ApiConstants.DONOR_CORPORATE, recurringDonation.Donor_Type__c);
+        Assert.areEqual('0205020001', recurringDonation.Sponsorship_ID__c);
         Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
 
     }
@@ -208,7 +215,7 @@ private class KenticoDonationRestServiceTest {
     private static npe03__Recurring_Donation__c recurringDonationFromResponse() {
         DonationResponse donationResponse = response();
         return [
-            SELECT npe03__Contact__c, npe03__Organization__c, Donor_Type__c
+            SELECT npe03__Contact__c, npe03__Organization__c, Donor_Type__c, Sponsorship_ID__c
             FROM npe03__Recurring_Donation__c
             WHERE Donation_Id__c = :donationResponse.recurringUUID
             LIMIT 1

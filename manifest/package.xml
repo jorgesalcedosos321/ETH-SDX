@@ -4,6 +4,10 @@
         <members>*</members>
         <name>ApexClass</name>
     </types>
+    <types>
+        <members>npe03__Recurring_Donation__c.Sponsorship_ID__c</members>
+        <name>CustomField</name>
+    </types>
     <!--<types>
         <members>*</members>
         <members>Account</members>

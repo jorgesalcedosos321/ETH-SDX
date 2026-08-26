@@ -166,12 +166,16 @@ public class RecurringDonationService implements IRecurringDonationService {
         // Custom sponsorship fields
         recurringDonation.Donation_Type__c = ApiConstants.DONATION_SPONSORSHIP;
         recurringDonation.Sponsorship_Type__c = request.sponsorshipType;        
-        recurringDonation.Sponsorship_Location__c = request.villageSelection;        
+        recurringDonation.Sponsorship_Location__c =
+            String.isNotBlank(request.villageSelection) && request.villageSelection.equalsIgnoreCase('Mekelle')
+                ? 'Makalle'
+                : request.villageSelection;
         recurringDonation.Sponsorship_Preference__c = request.sponsorshipPreference;        
         recurringDonation.Sponsorship_Age_Preference__c = request.age;
-        
-        //TODO: sponsorshipId Not sure if will be sent
-        //recurringDonation.Sponsorship_ID__c = request.sponsorshipId;
+        recurringDonation.Sponsorship_ID__c = generateSponsorshipId(
+            request,
+            contactId
+        );
         
         insert recurringDonation;
         return recurringDonation;
@@ -245,6 +249,67 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
 
         return opportunities[0];
+    }
+
+    private static String generateSponsorshipId(
+        DonationRequest request,
+        Id donorId
+    ) {
+        String villageCode = getVillageCode(request.villageSelection);
+        Integer sponsorshipCount;
+
+        if (isCorporateDonor(request)) {
+            Account lockedAccount = [
+                SELECT Id FROM Account WHERE Id = :donorId FOR UPDATE
+            ];
+            sponsorshipCount = [
+                SELECT COUNT()
+                FROM npe03__Recurring_Donation__c
+                WHERE npe03__Organization__c = :donorId
+                AND Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP
+            ];
+        } else {
+            Contact lockedContact = [
+                SELECT Id FROM Contact WHERE Id = :donorId FOR UPDATE
+            ];
+            sponsorshipCount = [
+                SELECT COUNT()
+                FROM npe03__Recurring_Donation__c
+                WHERE npe03__Contact__c = :donorId
+                AND Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP
+            ];
+        }
+
+        String sequence = String.valueOf(sponsorshipCount + 1);
+        while (sequence.length() < 4) {
+            sequence = '0' + sequence;
+        }
+
+        return '020-' + villageCode + '-' +sequence;
+    }
+
+    private static String getVillageCode(String sponsorshipLocation) {
+        Map<String, String> villageCodes = new Map<String, String>{
+            'addis ababa' => '502',
+            'bahir dar' => '515',
+            'gode' => '531',
+            'harar' => '518',
+            'hawassa' => '509',
+            'jimma' => '561',
+            'mekelle' => '524',
+            'makalle' => '524'
+        };
+        String normalizedLocation = String.isBlank(sponsorshipLocation)
+            ? null
+            : sponsorshipLocation.trim().toLowerCase();
+
+        if (!villageCodes.containsKey(normalizedLocation)) {
+            throw new DonationValidationException(
+                'A supported Sponsorship Location is required.'
+            );
+        }
+
+        return villageCodes.get(normalizedLocation);
     }
 
     private static Boolean isCorporateDonor(DonationRequest request) {
