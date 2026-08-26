@@ -12,8 +12,8 @@ public class DonationRequest {
     // Sponsorship
     public String sponsorshipType;
     public String sponsorshipCategory;
-    public String sponsorshipLocation;
-    public String sponsorshipAgePreference;
+    public String villageSelection;
+    public String age;
     public String sponsorshipPreference;
     public String sponsorshipId;
 
@@ -33,11 +33,11 @@ public class DonationRequest {
     public String gender;
 
     // Address
+    public String city;
+    public String country;
     public String mailingStreet;
-    public String mailingCity;
     public String mailingState;
     public String mailingPostalCode;
-    public String mailingCountry;
 
     // Organization
     public String accountName;
@@ -48,7 +48,7 @@ public class DonationRequest {
     public Boolean childDataSafeguarding;
 
     // Campaign
-    public String campaign;
+    public String campaignId;
     public String recurringUUID;
 
     // Payment

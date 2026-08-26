@@ -14,7 +14,12 @@ public with sharing class ContactService {
             update contact;
         }
 
-        return contact;
+        return [
+            SELECT Id, AccountId, FirstName, LastName, Email, Phone
+            FROM Contact
+            WHERE Id = :contact.Id
+            LIMIT 1
+        ];
     }
 
     /**
@@ -54,8 +59,8 @@ public with sharing class ContactService {
         contact.Birthdate = request.birthday;
 
         contact.MailingStreet = request.mailingStreet;
-        contact.MailingCity = request.mailingCity;
-        contact.MailingCountry = request.mailingCountry;
+        contact.MailingCity = request.city;
+        contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;
 
@@ -75,8 +80,8 @@ public with sharing class ContactService {
         contact.Birthdate = request.birthday;
 
         contact.MailingStreet = request.mailingStreet;
-        contact.MailingCity = request.mailingCity;
-        contact.MailingCountry = request.mailingCountry;
+        contact.MailingCity = request.city;
+        contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;
     }

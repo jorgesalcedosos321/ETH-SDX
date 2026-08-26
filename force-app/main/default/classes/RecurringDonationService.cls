@@ -43,13 +43,16 @@ public class RecurringDonationService implements IRecurringDonationService {
             ? null
             : ContactService.createOrUpdate(request);
 
-        Account account =
-            AccountService.createOrUpdate(request, contact);
+        Account account = isCorporate
+            ? AccountService.createOrUpdate(request)
+            : null;
+
+        Id accountId = isCorporate ? account.Id : contact.AccountId;
 
         Opportunity opportunity =
             OpportunityService.createDonation(
                 request,
-                account.Id,
+                accountId,
                 contact == null ? null : contact.Id
             );
 
@@ -100,11 +103,13 @@ public class RecurringDonationService implements IRecurringDonationService {
             ? null
             : ContactService.createOrUpdate(request);
         
-        // Create or update Account
-        Account account = AccountService.createOrUpdate(
-            request,
-            contact
-        );
+        // Corporate Accounts are handled explicitly. Individual Accounts are
+        // created automatically when the Contact is inserted.
+        Account account = isCorporate
+            ? AccountService.createOrUpdate(request)
+            : null;
+
+        Id accountId = isCorporate ? account.Id : contact.AccountId;
         
         // Sponsorships are always recurring
         npe03__Recurring_Donation__c recurringDonation =
@@ -117,7 +122,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         Opportunity opportunity =
             OpportunityService.createSponsorship(
                 request,
-                account.Id,
+                accountId,
                 recurringDonation.Id
             );
         
@@ -178,10 +183,11 @@ public class RecurringDonationService implements IRecurringDonationService {
         //recurringDonation.Source__c = request.source; 
         
         // Custom sponsorship fields
+        recurringDonation.Donation_Type__c = ApiConstants.DONATION_SPONSORSHIP;
         recurringDonation.Sponsorship_Type__c = request.sponsorshipType;        
-        recurringDonation.Sponsorship_Location__c = request.sponsorshipLocation;        
+        recurringDonation.Sponsorship_Location__c = request.villageSelection;        
         recurringDonation.Sponsorship_Preference__c = request.sponsorshipPreference;        
-        recurringDonation.Sponsorship_Age_Preference__c = request.sponsorshipAgePreference;
+        recurringDonation.Sponsorship_Age_Preference__c = request.age;
         
         //TODO: sponsorshipId Not sure if will be sent
         //recurringDonation.Sponsorship_ID__c = request.sponsorshipId;

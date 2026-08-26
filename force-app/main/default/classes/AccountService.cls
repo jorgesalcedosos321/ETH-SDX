@@ -6,36 +6,17 @@ public inherited sharing class AccountService {
      * Creates or updates an Account.
      */
     //SFESWCSD-92
-    public static Account createOrUpdate(
-        DonationRequest request,
-        Contact contact
-    ) {
+    public static Account createOrUpdate(DonationRequest request) {
 
-        if (contact != null && contact.AccountId != null) {
-            return [
-                SELECT Id, Name
-                FROM Account
-                WHERE Id = :contact.AccountId
-                LIMIT 1
-            ];
-        }
+        Account existingAccount = findCorporateAccount(request);
 
-        if (isCorporate(request)) {
-            Account existingAccount = findCorporateAccount(request);
-
-            if (existingAccount != null) {
-                return existingAccount;
-            }
+        if (existingAccount != null) {
+            return existingAccount;
         }
 
         Account account = buildAccount(request);
 
         insert account;
-
-        if (contact != null) {
-            contact.AccountId = account.Id;
-            update contact;
-        }
 
         return account;
     }
@@ -49,14 +30,9 @@ public inherited sharing class AccountService {
 
         Account account = new Account();
 
-        if (isCorporate(request)) {
-            account.Name = request.accountName;
-            account.Email__c = request.email;
-            account.Phone = request.phone;
-        } else {
-            account.Name =
-                request.firstName + ' ' + request.lastName;
-        }
+        account.Name = request.accountName;
+        account.Email__c = request.email;
+        account.Phone = request.phone;
 
         return account;
     }
@@ -95,11 +71,6 @@ public inherited sharing class AccountService {
         }
 
         return accounts.isEmpty() ? null : accounts[0];
-    }
-
-    private static Boolean isCorporate(DonationRequest request) {
-        return request.donorType != null &&
-            request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE);
     }
 
 }

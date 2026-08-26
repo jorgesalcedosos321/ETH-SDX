@@ -9,21 +9,22 @@ public inherited sharing class CampaignService {
     public static Id getCampaignId(
         DonationRequest request
     ) {
-        if (String.isBlank(request.campaign)) {
+        if (String.isBlank(request.campaignId)) {
             return null;
         }
 
         List<Campaign> campaigns = [
             SELECT Id
             FROM Campaign
-            WHERE Campaign_ID__c = :request.campaign
+            WHERE Campaign_ID__c = :request.campaignId
             LIMIT 1
         ];
 
         if (campaigns.isEmpty()) {
-            throw new DonationException(
-                'Campaign not found: ' + request.campaign
-            );
+            return NULL;
+            //throw new DonationException(
+            //    'Campaign not found: ' + request.campaignId
+            //);
         }
 
         return campaigns[0].Id;

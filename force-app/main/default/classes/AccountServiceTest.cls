@@ -15,7 +15,7 @@ private class AccountServiceTest {
             '999999999'
         );
 
-        Account result = AccountService.createOrUpdate(request, null);
+        Account result = AccountService.createOrUpdate(request);
 
         Assert.areEqual(existingAccount.Id, result.Id);
         Assert.areEqual(
@@ -39,7 +39,7 @@ private class AccountServiceTest {
             existingAccount.Phone
         );
 
-        Account result = AccountService.createOrUpdate(request, null);
+        Account result = AccountService.createOrUpdate(request);
 
         Assert.areEqual(existingAccount.Id, result.Id);
         Assert.areEqual(
@@ -56,7 +56,7 @@ private class AccountServiceTest {
             '333333333'
         );
 
-        Account result = AccountService.createOrUpdate(request, null);
+        Account result = AccountService.createOrUpdate(request);
         Account createdAccount = [
             SELECT Name, Email__c, Phone
             FROM Account
@@ -66,6 +66,19 @@ private class AccountServiceTest {
         Assert.areEqual(request.accountName, createdAccount.Name);
         Assert.areEqual(request.email, createdAccount.Email__c);
         Assert.areEqual(request.phone, createdAccount.Phone);
+    }
+
+    @IsTest
+    static void createsCorporateAccountWithoutOptionalIdentifiers() {
+        DonationRequest request = corporateRequest(
+            'Corporate Without Identifiers',
+            null,
+            null
+        );
+
+        Account result = AccountService.createOrUpdate(request);
+
+        Assert.areEqual(request.accountName, result.Name);
     }
 
     private static DonationRequest corporateRequest(

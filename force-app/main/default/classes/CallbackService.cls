@@ -25,7 +25,7 @@ public inherited sharing class CallbackService {
         Integer month = Date.today().month(); //Integer.valueOf(request.month);
         Date todayDate = Date.today(); //Date.newInstance(Integer.valueOf(request.year), month, Integer.valueOf(request.day));
 
-        List<npe01__OppPayment__c> payments = [SELECT Id, npe01__Opportunity__c, npe01__Scheduled_Date__c, Scheduled_Date_2nd_Attempt__c, Scheduled_Date_3rd_Attempt__c, Failed_Payment_Attempts__c, npe01__Paid__c, npe01__Written_Off__c, npe01__Payment_Amount__c, npe01__Payment_Date__c, npe01__Check_Reference_Number__c, Status__c, npsp__Card_Expiration_Month__c, npsp__Card_Expiration_Year__c, npsp__Card_Network__c, Credit_Card_Number__c, Credit_Card_Holder__c
+        List<npe01__OppPayment__c> payments = [SELECT Id, npe01__Opportunity__c, npe01__Opportunity__r.npsp__Recurring_Donation_Installment_Number__c, npe01__Opportunity__r.npe03__Recurring_Donation__c, npe01__Scheduled_Date__c, Scheduled_Date_2nd_Attempt__c, Scheduled_Date_3rd_Attempt__c, Failed_Payment_Attempts__c, npe01__Paid__c, npe01__Written_Off__c, npe01__Payment_Amount__c, npe01__Payment_Date__c, npe01__Check_Reference_Number__c, Status__c
             FROM npe01__OppPayment__c
             WHERE npe01__Opportunity__r.npe03__Recurring_Donation__c = :recurringDonations[0].Id AND
                   ((CALENDAR_MONTH(npe01__Scheduled_Date__c) =: month AND CALENDAR_YEAR(npe01__Scheduled_Date__c) =: todayDate.year() AND (Failed_Payment_Attempts__c = 0 OR Failed_Payment_Attempts__c = NULL)) OR
@@ -101,16 +101,7 @@ public inherited sharing class CallbackService {
             }
 
             currentPayment.npe01__Payment_Date__c = request.transactionDate.date();
-            currentPayment.npsp__Card_Expiration_Month__c = request.cardExpiryMonth + '';
-            currentPayment.npsp__Card_Expiration_Year__c = request.cardExpiryYear + '';
-            currentPayment.npsp__Card_Network__c = request.creditCardType != null
-                ? request.creditCardType
-                : request.cardNetwork;
-            currentPayment.Credit_Card_Number__c = request.cardLast4Digits != null
-                ? request.cardLast4Digits
-                : request.cardLast4;
             currentPayment.npe01__Check_Reference_Number__c = request.referenceId;
-            currentPayment.Credit_Card_Holder__c = request.cardHolder;
             UPDATE currentPayment;
         }
 

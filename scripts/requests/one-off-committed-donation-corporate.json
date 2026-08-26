@@ -1,0 +1,22 @@
+{
+    "transactionType": "Donation",
+    "donorType": "Corporate",
+    "donationType": "OneOff",
+    "donationId": "DONATION-CORPORATE-ONE-OFF-001",
+    "donationAmount": 250.00,
+    "email": "donations@example-corporation.com",
+    "phone": "+15557654321",
+    "accountName": "Example Corporation",
+    "city": "Lima",
+    "country": "Peru",
+    "mailingStreet": "456 Corporate Avenue",
+    "mailingState": "Lima",
+    "mailingPostalCode": "15001",
+    "emailOptOut": false,
+    "personalDataConsent": true,
+    "childDataSafeguarding": false,
+    "campaignId": "REPLACE_WITH_CAMPAIGN_ID",
+    "paymentMethod": "Credit Card",
+    "paymentType": "One Time",
+    "source": "Kentico"
+}

@@ -36,7 +36,7 @@ public inherited sharing class ValidationService {
                 throw new DonationValidationException('Last Name is required.');
             }
 
-            if (String.isBlank(request.email)) {
+            if (String.isBlank(request.email) || !isValidEmail(request.email)) {
                 throw new DonationValidationException('Email is required.');
             }
         }
@@ -53,7 +53,7 @@ public inherited sharing class ValidationService {
             throw new DonationValidationException('Payment Type is required.');
         }
 
-        if (String.isBlank(request.campaign)) {
+        if (String.isBlank(request.campaignId)) {
             throw new DonationValidationException('Campaign is required.');
         }
 
@@ -90,6 +90,22 @@ public inherited sharing class ValidationService {
 
         }
 
+    }
+
+    public static Boolean isValidEmail(String email) {
+        if (String.isBlank(email) || email.length() > 254) {
+            return false;
+        }
+
+        Pattern emailPattern = Pattern.compile(
+            '^[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+' +
+            '(\\.[A-Za-z0-9!#$%&\'*+/=?^_`{|}~-]+)*' +
+            '@' +
+            '[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?' +
+            '(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$'
+        );
+
+        return emailPattern.matcher(email.trim()).matches();
     }
 
 }

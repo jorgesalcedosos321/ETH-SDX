@@ -47,7 +47,7 @@ public with sharing class LeadService {
         lead.Birthdate__c = request.birthday;
 
         lead.Mailing__Street__s = request.mailingStreet;
-        lead.Mailing__City__s = request.mailingCity;
+        lead.Mailing__City__s = request.city;
         //lead.Mailing__Country__s = request.mailingCountry;
 
         lead.HasOptedOutOfEmail = request.emailOptOut;

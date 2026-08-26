@@ -3,181 +3,194 @@
 private class KenticoDonationRestServiceTest {
     @TestSetup
     static void setupData() {
-        
-        List<Campaign> campaigns = new List<Campaign>();
-        
-        campaigns.add(new Campaign(
-            Name = 'Test Campaign I08',
-            IsActive = true,
-            Campaign_ID__c = 'I08'
-        ));
-        
-        campaigns.add(new Campaign(
-            Name = 'Test Campaign I09',
-            IsActive = true,
-            Campaign_ID__c = 'I09'
-        ));
-        
-        insert campaigns;
-    }        
-        
-    @IsTest
-    static void testProcessRecurringDonation() {
-
-        String requestBody =
-            '{' +
-                '"transactionType":"Donation",' +
-                '"donorType":"Individual",' +
-                '"donationType":"Recurring",' +
-                '"donationId":"DON-2026-000002",' +
-
-                '"sponsorshipType":null,' +
-                '"sponsorshipCategory":null,' +
-                '"sponsorshipLocation":null,' +
-                '"sponsorshipAgePreference":null,' +
-                '"sponsorshipPreference":null,' +
-                '"sponsorshipId":null,' +
-
-                '"amount":20.00,' +
-                '"installmentPeriod":"Monthly",' +
-                '"dateEstablished":"2026-08-11",' +
-
-                '"salutation":"Ms",' +
-                '"firstName":"Sarah",' +
-                '"lastName":"Johnson",' +
-                '"email":"sarah.johnson@example.com",' +
-                '"phone":"+251922123456",' +
-                '"birthday":"1990-03-20",' +
-                '"gender":"Female",' +
-
-                '"mailingStreet":"45 Bole Road",' +
-                '"mailingCity":"Addis Ababa",' +
-                '"mailingState":"Addis Ababa",' +
-                '"mailingPostalCode":"1000",' +
-                '"mailingCountry":"Ethiopia",' +
-
-                '"accountName":null,' +
-
-                '"emailOptOut":false,' +
-                '"personalDataConsent":true,' +
-                '"childDataSafeguarding":false,' +
-
-                '"campaign":"I08",' +
-                '"recurringUUID":"ARIFPAY-REC-20260811-000001",' +
-
-                '"paymentMethod":"ArifPay",' +
-                '"paymentType":"CreditCard",' +
-
-                '"source":"Digital Media"' +
-            '}';
-
-        RestRequest req = new RestRequest();
-        req.requestURI = '/services/apexrest/donation/oneOffCommitted';
-        req.httpMethod = 'POST';
-        req.requestBody = Blob.valueOf(requestBody);
-
-        RestResponse res = new RestResponse();
-
-        RestContext.request = req;
-        RestContext.response = res;
-
-        Test.startTest();
-
-        OneOffCommittedDonationRestService.process();
-
-        Test.stopTest();
-
-        System.assertEquals(
-            200,
-            RestContext.response.statusCode,
-            'The REST service should return HTTP 200.'
-        );
-
-        System.assertNotEquals(
-            null,
-            RestContext.response.responseBody,
-            'The response body should not be null.'
-        );
-
-        System.debug(
-            'Response: ' +
-            RestContext.response.responseBody.toString()
-        );
+        insert new Campaign(Name = 'REST Test Campaign', IsActive = true, Campaign_ID__c = 'REST-TEST-CAMPAIGN');
     }
-    
-    
+
     @IsTest
-    static void testProcessSponsorship() {
-        
-        String requestBody =
-            '{' +
-            '"transactionType":"Donation",' +
-            '"donorType":"Individual",' +
-            '"donationType":"Sponsorship",' +
-            '"donationId":"DON-2026-000004",' +
-            
-            '"sponsorshipType":"Child Sponsorship",' +
-            '"sponsorshipCategory":"Education",' +
-            '"sponsorshipLocation":"Addis Ababa",' +
-            '"sponsorshipAgePreference":"6-10",' +
-            '"sponsorshipPreference":"Any",' +
-            '"sponsorshipId":"SP-2026-000123",' +
-            
-            '"amount":30.00,' +
-            '"installmentPeriod":"Monthly",' +
-            '"dateEstablished":"2026-08-11",' +
-            
-            '"salutation":"Mr",' +
-            '"firstName":"David",' +
-            '"lastName":"Wilson",' +
-            '"email":"david.wilson@example.com",' +
-            '"phone":"+251933456789",' +
-            '"birthday":"1988-10-12",' +
-            '"gender":"Male",' +
-            
-            '"mailingStreet":"25 Churchill Avenue",' +
-            '"mailingCity":"Addis Ababa",' +
-            '"mailingState":"Addis Ababa",' +
-            '"mailingPostalCode":"1000",' +
-            '"mailingCountry":"Ethiopia",' +
-            
-            '"accountName":null,' +
-            
-            '"emailOptOut":false,' +
-            '"personalDataConsent":true,' +
-            '"childDataSafeguarding":true,' +
-            
-            '"campaign":"I09",' +
-            '"recurringUUID":"ARIFPAY-REC-20260811-000002",' +
-            
-            '"paymentMethod":"ArifPay",' +
-            '"paymentType":"CreditCard",' +
-            
-            '"source":"Website"' +
-            '}';
-        
-        RestRequest req = new RestRequest();
-        req.requestURI = '/services/apexrest/donation/oneOffCommitted/';
-        req.httpMethod = 'POST';
-        req.requestBody = Blob.valueOf(requestBody);
-        
-        RestContext.request = req;
-        RestContext.response = new RestResponse();
-        
+    static void processesIndividualOneOffDonation() {
+        DonationRequest request = baseRequest(ApiConstants.DONOR_INDIVIDUAL);
+        request.donationType = ApiConstants.DONATION_ONE_OFF;
+        request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
+        invokeOneOff(request);
+
+        Contact donor = [SELECT Id, AccountId FROM Contact WHERE Email = :request.email LIMIT 1];
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+        Assert.isNotNull(donor.AccountId);
+        Assert.areEqual(donor.AccountId, donationFromResponse().AccountId);
+    }
+
+    @IsTest
+    static void processesCorporateOneOffDonation() {
+        DonationRequest request = baseRequest(ApiConstants.DONOR_CORPORATE);
+        request.donationType = ApiConstants.DONATION_ONE_OFF;
+        request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
+        invokeOneOff(request);
+
+        Account donor = [SELECT Id, Email__c, Phone FROM Account WHERE Name = :request.accountName LIMIT 1];
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+        Assert.areEqual(request.email, donor.Email__c);
+        Assert.areEqual(request.phone, donor.Phone);
+        Assert.areEqual(donor.Id, donationFromResponse().AccountId);
+        Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
+    }
+
+    @IsTest
+    static void processesIndividualSponsorship() {
+        DonationRequest request = sponsorshipRequest(ApiConstants.DONOR_INDIVIDUAL);
+        invokeSponsorship(request);
+
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+        Contact donor = [SELECT Id FROM Contact WHERE Email = :request.email LIMIT 1];
+        npe03__Recurring_Donation__c recurringDonation = recurringDonationFromResponse();
+        Assert.areEqual(donor.Id, recurringDonation.npe03__Contact__c);
+        Assert.isNull(recurringDonation.npe03__Organization__c);
+        Assert.areEqual(ApiConstants.DONOR_INDIVIDUAL, recurringDonation.Donor_Type__c);
+
+        invokeArifPayCallback(request);
+        assertSuccessfulCallback(request.recurringUUID);
+    }
+
+    @IsTest
+    static void processesCorporateSponsorship() {
+        DonationRequest request = sponsorshipRequest(ApiConstants.DONOR_CORPORATE);
+        invokeSponsorship(request);
+
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+        Account donor = [SELECT Id FROM Account WHERE Name = :request.accountName LIMIT 1];
+        npe03__Recurring_Donation__c recurringDonation = recurringDonationFromResponse();
+        Assert.areEqual(donor.Id, recurringDonation.npe03__Organization__c);
+        Assert.isNull(recurringDonation.npe03__Contact__c);
+        Assert.areEqual(ApiConstants.DONOR_CORPORATE, recurringDonation.Donor_Type__c);
+        Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
+
+        invokeArifPayCallback(request);
+        assertSuccessfulCallback(request.recurringUUID);
+    }
+
+    private static DonationRequest baseRequest(String donorType) {
+        DonationRequest request = new DonationRequest();
+        request.transactionType = 'Donation';
+        request.donorType = donorType;
+        request.donationId = 'REST-DONATION-' + donorType;
+        request.donationAmount = 100;
+        request.firstName = 'REST';
+        request.lastName = 'Donor';
+        request.email = donorType.toLowerCase() + '@example.com';
+        request.phone = donorType == ApiConstants.DONOR_CORPORATE ? '5551002000' : '5551001000';
+        request.accountName = 'REST Corporate Donor';
+        request.city = 'Lima';
+        request.country = 'Peru';
+        request.mailingStreet = '123 Test Street';
+        request.personalDataConsent = true;
+        request.childDataSafeguarding = false;
+        request.emailOptOut = false;
+        request.campaignId = 'REST-TEST-CAMPAIGN';
+        request.paymentMethod = ApiConstants.PAYMENT_CARD;
+        request.source = ApiConstants.SOURCE_KENTICO;
+        return request;
+    }
+
+    private static DonationRequest sponsorshipRequest(String donorType) {
+        DonationRequest request = baseRequest(donorType);
+        request.donationType = ApiConstants.DONATION_SPONSORSHIP;
+        request.paymentType = ApiConstants.PAYMENT_RECURRING;
+        request.frequency = ApiConstants.PERIOD_MONTHLY;
+        request.dateEstablished = Date.today();
+        request.recurringUUID = 'REST-RECURRING-' + donorType;
+        request.sponsorshipType = ApiConstants.SPONSOR_CHILD;
+        request.sponsorshipCategory = 'Education';
+        request.villageSelection = 'Addis Ababa';
+        request.age = '8 - 11 yrs';
+        request.sponsorshipPreference = 'No Preference';
+        request.sponsorshipId = 'REST-SPONSORSHIP-' + donorType;
+        request.childDataSafeguarding = true;
+        return request;
+    }
+
+    private static void invokeOneOff(DonationRequest request) {
+        prepareRestRequest('/services/apexrest/donation/oneOffCommitted/', request);
         Test.startTest();
-        
         OneOffCommittedDonationRestService.process();
-        
         Test.stopTest();
-        
-        System.assertEquals(
-            200,
-            RestContext.response.statusCode
-        );
-        
-        System.assertNotEquals(
-            null,
-            RestContext.response.responseBody
-        );
-    }    
+    }
+
+    private static void invokeSponsorship(DonationRequest request) {
+        prepareRestRequest('/services/apexrest/donation/sponsorship/', request);
+        Test.startTest();
+        SponsorshipDonationRestService.process();
+        Test.stopTest();
+    }
+
+    private static void prepareRestRequest(String uri, DonationRequest request) {
+        RestRequest restRequest = new RestRequest();
+        restRequest.requestURI = uri;
+        restRequest.httpMethod = 'POST';
+        restRequest.requestBody = Blob.valueOf(JSON.serialize(request));
+        RestContext.request = restRequest;
+        RestContext.response = new RestResponse();
+    }
+
+    private static void invokeArifPayCallback(DonationRequest donationRequest) {
+        ArifPayCallbackRequest callback = new ArifPayCallbackRequest();
+        callback.donationId = donationRequest.donationId;
+        callback.recurringUUID = donationRequest.recurringUUID;
+        callback.paymentStatus = 'SUCCESS';
+        callback.amount = donationRequest.donationAmount;
+        callback.transactionDate = Datetime.now();
+        callback.referenceId = 'ARIFPAY-' + donationRequest.donorType;
+        callback.paymentMethod = donationRequest.paymentMethod;
+        callback.cardHolder = donationRequest.donorType == ApiConstants.DONOR_CORPORATE
+            ? donationRequest.accountName
+            : donationRequest.firstName + ' ' + donationRequest.lastName;
+        callback.creditCardType = 'Visa';
+        callback.cardLast4Digits = '4242';
+        callback.cardExpiryMonth = 12;
+        callback.cardExpiryYear = 2028;
+        callback.currencyEN = 'USD';
+
+        RestRequest restRequest = new RestRequest();
+        restRequest.requestURI = '/services/apexrest/arifpay/payments/';
+        restRequest.httpMethod = 'POST';
+        restRequest.requestBody = Blob.valueOf(JSON.serialize(callback));
+        RestContext.request = restRequest;
+        RestContext.response = new RestResponse();
+        ArifPayCallbackRestService.callback();
+    }
+
+    private static void assertSuccessfulCallback(String recurringUUID) {
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+
+        npe01__OppPayment__c payment = [
+            SELECT npe01__Paid__c, Status__c, npe01__Check_Reference_Number__c
+            FROM npe01__OppPayment__c
+            WHERE npe01__Opportunity__r.npe03__Recurring_Donation__r.Donation_Id__c = :recurringUUID
+            LIMIT 1
+        ];
+        Assert.isTrue(payment.npe01__Paid__c);
+        Assert.areEqual('Paid', payment.Status__c);
+        Assert.isNotNull(payment.npe01__Check_Reference_Number__c);
+    }
+
+    private static Opportunity donationFromResponse() {
+        DonationResponse response = response();
+        return [SELECT Id, AccountId FROM Opportunity WHERE Id = :response.donationId];
+    }
+
+    private static npe03__Recurring_Donation__c recurringDonationFromResponse() {
+        DonationResponse donationResponse = response();
+        return [
+            SELECT npe03__Contact__c, npe03__Organization__c, Donor_Type__c
+            FROM npe03__Recurring_Donation__c
+            WHERE Donation_Id__c = :donationResponse.recurringUUID
+            LIMIT 1
+        ];
+    }
+
+    private static DonationResponse response() {
+        return (DonationResponse) JSON.deserialize(responseBody(), DonationResponse.class);
+    }
+
+    private static String responseBody() {
+        return RestContext.response.responseBody == null ? null : RestContext.response.responseBody.toString();
+    }
 }
