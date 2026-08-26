@@ -14,9 +14,19 @@ private class KenticoDonationRestServiceTest {
         invokeOneOff(request);
 
         Contact donor = [SELECT Id, AccountId FROM Contact WHERE Email = :request.email LIMIT 1];
+        Opportunity donation = donationFromResponse();
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
         Assert.isNotNull(donor.AccountId);
-        Assert.areEqual(donor.AccountId, donationFromResponse().AccountId);
+        Assert.areEqual(donor.AccountId, donation.AccountId);
+        Assert.areEqual(
+            1,
+            [
+                SELECT COUNT()
+                FROM npe01__OppPayment__c
+                WHERE npe01__Opportunity__c = :donation.Id
+            ],
+            'A one-time Opportunity must have exactly one Payment.'
+        );
     }
 
     @IsTest
@@ -27,11 +37,21 @@ private class KenticoDonationRestServiceTest {
         invokeOneOff(request);
 
         Account donor = [SELECT Id, Email__c, Phone FROM Account WHERE Name = :request.accountName LIMIT 1];
+        Opportunity donation = donationFromResponse();
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
         Assert.areEqual(request.email, donor.Email__c);
         Assert.areEqual(request.phone, donor.Phone);
-        Assert.areEqual(donor.Id, donationFromResponse().AccountId);
+        Assert.areEqual(donor.Id, donation.AccountId);
         Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
+        Assert.areEqual(
+            1,
+            [
+                SELECT COUNT()
+                FROM npe01__OppPayment__c
+                WHERE npe01__Opportunity__c = :donation.Id
+            ],
+            'A one-time Opportunity must have exactly one Payment.'
+        );
     }
 
     @IsTest
@@ -78,12 +98,12 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(donor.Id, recurringDonation.npe03__Contact__c);
         Assert.isNull(recurringDonation.npe03__Organization__c);
         Assert.areEqual(ApiConstants.DONOR_INDIVIDUAL, recurringDonation.Donor_Type__c);
-        Assert.areEqual('0205020001', recurringDonation.Sponsorship_ID__c);
+        Assert.areEqual('020-502-0001', recurringDonation.Sponsorship_ID__c);
 
         request.recurringUUID = request.recurringUUID + '-SECOND';
         npe03__Recurring_Donation__c secondSponsorship =
             RecurringDonationService.createSponsorship(request, donor.Id);
-        Assert.areEqual('0205020002', secondSponsorship.Sponsorship_ID__c);
+        Assert.areEqual('020-502-0002', secondSponsorship.Sponsorship_ID__c);
 
     }
 
@@ -98,9 +118,56 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(donor.Id, recurringDonation.npe03__Organization__c);
         Assert.isNull(recurringDonation.npe03__Contact__c);
         Assert.areEqual(ApiConstants.DONOR_CORPORATE, recurringDonation.Donor_Type__c);
-        Assert.areEqual('0205020001', recurringDonation.Sponsorship_ID__c);
+        Assert.areEqual('020-502-0001', recurringDonation.Sponsorship_ID__c);
         Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
 
+    }
+
+    @IsTest
+    static void oneOffEndpointRejectsSponsorshipPayload() {
+        DonationRequest request = sponsorshipRequest(ApiConstants.DONOR_INDIVIDUAL);
+        invokeOneOff(request);
+        Assert.areEqual(400, RestContext.response.statusCode);
+    }
+
+    @IsTest
+    static void sponsorshipEndpointRejectsOneOffPayload() {
+        DonationRequest request = baseRequest(ApiConstants.DONOR_INDIVIDUAL);
+        request.donationType = ApiConstants.DONATION_ONE_OFF;
+        request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
+        invokeSponsorship(request);
+        Assert.areEqual(400, RestContext.response.statusCode);
+    }
+
+    @IsTest
+    static void oneOffEndpointReturnsValidationError() {
+        DonationRequest oneOffRequest = baseRequest(ApiConstants.DONOR_INDIVIDUAL);
+        oneOffRequest.donationType = ApiConstants.DONATION_ONE_OFF;
+        oneOffRequest.paymentType = ApiConstants.PAYMENT_ONE_TIME;
+        oneOffRequest.email = null;
+        invokeOneOff(oneOffRequest);
+        Assert.areEqual(400, RestContext.response.statusCode);
+    }
+
+    @IsTest
+    static void sponsorshipEndpointReturnsValidationError() {
+        DonationRequest sponsorRequest = sponsorshipRequest(
+            ApiConstants.DONOR_CORPORATE
+        );
+        sponsorRequest.accountName = null;
+        invokeSponsorship(sponsorRequest);
+        Assert.areEqual(400, RestContext.response.statusCode);
+    }
+
+    @IsTest
+    static void endpointsReturnSystemErrorsForMalformedJson() {
+        prepareMalformedRestRequest('/services/apexrest/donation/oneOffCommitted/');
+        OneOffCommittedDonationRestService.process();
+        Assert.areEqual(500, RestContext.response.statusCode);
+
+        prepareMalformedRestRequest('/services/apexrest/donation/sponsorship/');
+        SponsorshipDonationRestService.process();
+        Assert.areEqual(500, RestContext.response.statusCode);
     }
 
     private static DonationRequest baseRequest(String donorType) {
@@ -162,6 +229,15 @@ private class KenticoDonationRestServiceTest {
         restRequest.requestURI = uri;
         restRequest.httpMethod = 'POST';
         restRequest.requestBody = Blob.valueOf(JSON.serialize(request));
+        RestContext.request = restRequest;
+        RestContext.response = new RestResponse();
+    }
+
+    private static void prepareMalformedRestRequest(String uri) {
+        RestRequest restRequest = new RestRequest();
+        restRequest.requestURI = uri;
+        restRequest.httpMethod = 'POST';
+        restRequest.requestBody = Blob.valueOf('{invalid-json');
         RestContext.request = restRequest;
         RestContext.response = new RestResponse();
     }

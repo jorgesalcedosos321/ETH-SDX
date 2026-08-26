@@ -66,12 +66,9 @@ public class RecurringDonationService implements IRecurringDonationService {
                 accountId,
                 contact == null ? null : contact.Id
             );
-            PaymentTriggerService.create(request, opportunity.Id);
         }
 
-        DonationResponse response =
-            new DonationResponse();
-
+        DonationResponse response = new DonationResponse();
         response.success = true;
         response.status = ApiConstants.STATUS_SUCCESS;
         response.message = ApiConstants.MSG_CREATED;
@@ -285,7 +282,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             sequence = '0' + sequence;
         }
 
-        return '020' + villageCode + sequence;
+        return '020-' + villageCode + '-' + sequence;
     }
 
     private static String getVillageCode(String sponsorshipLocation) {
