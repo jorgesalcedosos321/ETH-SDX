@@ -69,8 +69,14 @@ public with sharing class ContactService {
         contact.Email = request.email;
         contact.Phone = request.phone;
         contact.Birthdate = request.birthday;
-        contact.Gender__c = validPicklistValue(Contact.Gender__c, request.gender);
-        contact.Source__c = validPicklistValue(Contact.Source__c, request.source);
+        contact.Gender__c = validPicklistValue(
+            Schema.Contact.Gender__c.getDescribe(),
+            request.gender
+        );
+        contact.Source__c = validPicklistValue(
+            Schema.Contact.Source__c.getDescribe(),
+            request.source
+        );
 
         contact.MailingStreet = request.mailingStreet;
         contact.MailingCity = request.city;
@@ -97,11 +103,17 @@ public with sharing class ContactService {
         contact.Email = request.email;
         contact.Phone = request.phone;
         contact.Birthdate = request.birthday;
-        String gender = validPicklistValue(Contact.Gender__c, request.gender);
+        String gender = validPicklistValue(
+            Schema.Contact.Gender__c.getDescribe(),
+            request.gender
+        );
         if (gender != null) {
             contact.Gender__c = gender;
         }
-        String source = validPicklistValue(Contact.Source__c, request.source);
+        String source = validPicklistValue(
+            Schema.Contact.Source__c.getDescribe(),
+            request.source
+        );
         if (source != null) {
             contact.Source__c = source;
         }
@@ -119,7 +131,7 @@ public with sharing class ContactService {
      * inactive, and blank values are ignored to prevent DML failures.
      */
     private static String validPicklistValue(
-        Schema.SObjectField fieldToken,
+        Schema.DescribeFieldResult fieldDescribe,
         String requestedValue
     ) {
         if (String.isBlank(requestedValue)) {
@@ -127,8 +139,7 @@ public with sharing class ContactService {
         }
 
         String normalizedValue = requestedValue.trim();
-        for (Schema.PicklistEntry entry :
-            fieldToken.getDescribe().getPicklistValues()) {
+        for (Schema.PicklistEntry entry : fieldDescribe.getPicklistValues()) {
             if (entry.isActive() &&
                 (entry.getValue().equalsIgnoreCase(normalizedValue) ||
                  entry.getLabel().equalsIgnoreCase(normalizedValue))) {
