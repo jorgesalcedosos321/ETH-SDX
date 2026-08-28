@@ -43,8 +43,7 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(request.email, donor.Email__c);
         Assert.areEqual(request.phone, donor.Phone);
         Assert.areEqual(donor.Id, donation.AccountId);
-        Assert.areEqual(request.firstName, primaryContact.FirstName);
-        Assert.areEqual(request.lastName, primaryContact.LastName);
+        assertCorporateContactData(request, donor.Id, primaryContact);
         Assert.areEqual(primaryContact.Id, donation.npsp__Primary_Contact__c);
         Assert.areEqual(
             1,
@@ -124,10 +123,33 @@ private class KenticoDonationRestServiceTest {
         Assert.isNull(recurringDonation.npe03__Contact__c);
         Assert.areEqual(ApiConstants.DONOR_CORPORATE, recurringDonation.Donor_Type__c);
         Assert.areEqual('020-502-0001', recurringDonation.Sponsorship_ID__c);
-        Assert.areEqual(request.firstName, primaryContact.FirstName);
-        Assert.areEqual(request.lastName, primaryContact.LastName);
+        assertCorporateContactData(request, donor.Id, primaryContact);
         Assert.areEqual(primaryContact.Id, donation.npsp__Primary_Contact__c);
 
+    }
+
+    @IsTest
+    static void ignoresInvalidCorporateContactPicklistValues() {
+        DonationRequest request = baseRequest(ApiConstants.DONOR_CORPORATE);
+        request.donationType = ApiConstants.DONATION_ONE_OFF;
+        request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
+        request.donationId = 'REST-DONATION-CORPORATE-INVALID-PICKLISTS';
+        request.accountName = 'REST Corporate Invalid Picklists';
+        request.email = 'invalid-picklists@example.com';
+        request.gender = 'Not a configured gender';
+        request.source = 'Not a configured source';
+
+        invokeOneOff(request);
+
+        Assert.areEqual(200, RestContext.response.statusCode, responseBody());
+        Contact primaryContact = [
+            SELECT Gender__c, Source__c
+            FROM Contact
+            WHERE Email = :request.email
+            LIMIT 1
+        ];
+        Assert.isNull(primaryContact.Gender__c);
+        Assert.isNull(primaryContact.Source__c);
     }
 
     @IsTest
@@ -185,18 +207,23 @@ private class KenticoDonationRestServiceTest {
         request.donationAmount = 100;
         request.firstName = 'REST';
         request.lastName = 'Donor';
+        request.salutation = 'Ms.';
         request.email = donorType.toLowerCase() + '@example.com';
         request.phone = donorType == ApiConstants.DONOR_CORPORATE ? '5551002000' : '5551001000';
+        request.birthday = Date.newInstance(1990, 1, 15);
+        request.gender = 'Female';
         request.accountName = 'REST Corporate Donor';
         request.city = 'Lima';
         request.country = 'Peru';
         request.mailingStreet = '123 Test Street';
+        request.mailingState = 'Lima';
+        request.mailingPostalCode = '15001';
         request.personalDataConsent = true;
         request.childDataSafeguarding = false;
         request.emailOptOut = false;
         request.campaignId = 'REST-TEST-CAMPAIGN';
         request.paymentMethod = ApiConstants.PAYMENT_CARD;
-        request.source = ApiConstants.SOURCE_KENTICO;
+        request.source = 'Web';
         return request;
     }
 
@@ -304,13 +331,40 @@ private class KenticoDonationRestServiceTest {
         Id accountId
     ) {
         return [
-            SELECT Id, AccountId, FirstName, LastName, Email, Phone,
+            SELECT Id, AccountId, Salutation, FirstName, LastName, Email,
+                   Phone, Birthdate, Gender__c, Source__c,
+                   HasOptedOutOfEmail,
                    MailingStreet, MailingCity, MailingState,
                    MailingPostalCode, MailingCountry
             FROM Contact
             WHERE AccountId = :accountId AND Email = :request.email
             LIMIT 1
         ];
+    }
+
+    private static void assertCorporateContactData(
+        DonationRequest request,
+        Id accountId,
+        Contact primaryContact
+    ) {
+        Assert.areEqual(accountId, primaryContact.AccountId);
+        Assert.areEqual(request.salutation, primaryContact.Salutation);
+        Assert.areEqual(request.firstName, primaryContact.FirstName);
+        Assert.areEqual(request.lastName, primaryContact.LastName);
+        Assert.areEqual(request.email, primaryContact.Email);
+        Assert.areEqual(request.phone, primaryContact.Phone);
+        Assert.areEqual(request.birthday, primaryContact.Birthdate);
+        Assert.areEqual(request.gender, primaryContact.Gender__c);
+        Assert.areEqual(request.source, primaryContact.Source__c);
+        Assert.areEqual(request.mailingStreet, primaryContact.MailingStreet);
+        Assert.areEqual(request.city, primaryContact.MailingCity);
+        Assert.areEqual(request.mailingState, primaryContact.MailingState);
+        Assert.areEqual(
+            request.mailingPostalCode,
+            primaryContact.MailingPostalCode
+        );
+        Assert.areEqual(request.country, primaryContact.MailingCountry);
+        Assert.areEqual(request.emailOptOut, primaryContact.HasOptedOutOfEmail);
     }
 
     private static npe03__Recurring_Donation__c recurringDonationFromResponse() {

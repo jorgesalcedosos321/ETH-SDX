@@ -26,7 +26,8 @@ public with sharing class ContactService {
         }
 
         return [
-            SELECT Id, AccountId, FirstName, LastName, Email, Phone
+            SELECT Id, AccountId, FirstName, LastName, Email, Phone,
+                   Gender__c, Source__c
             FROM Contact
             WHERE Id = :contact.Id
             LIMIT 1
@@ -68,6 +69,8 @@ public with sharing class ContactService {
         contact.Email = request.email;
         contact.Phone = request.phone;
         contact.Birthdate = request.birthday;
+        contact.Gender__c = validPicklistValue(Contact.Gender__c, request.gender);
+        contact.Source__c = validPicklistValue(Contact.Source__c, request.source);
 
         contact.MailingStreet = request.mailingStreet;
         contact.MailingCity = request.city;
@@ -94,7 +97,14 @@ public with sharing class ContactService {
         contact.Email = request.email;
         contact.Phone = request.phone;
         contact.Birthdate = request.birthday;
-
+        String gender = validPicklistValue(Contact.Gender__c, request.gender);
+        if (gender != null) {
+            contact.Gender__c = gender;
+        }
+        String source = validPicklistValue(Contact.Source__c, request.source);
+        if (source != null) {
+            contact.Source__c = source;
+        }
         contact.MailingStreet = request.mailingStreet;
         contact.MailingCity = request.city;
         contact.MailingState = request.mailingState;
@@ -102,6 +112,31 @@ public with sharing class ContactService {
         contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;
+    }
+
+    /**
+     * Returns the canonical value of an active picklist entry. Invalid,
+     * inactive, and blank values are ignored to prevent DML failures.
+     */
+    private static String validPicklistValue(
+        Schema.SObjectField fieldToken,
+        String requestedValue
+    ) {
+        if (String.isBlank(requestedValue)) {
+            return null;
+        }
+
+        String normalizedValue = requestedValue.trim();
+        for (Schema.PicklistEntry entry :
+            fieldToken.getDescribe().getPicklistValues()) {
+            if (entry.isActive() &&
+                (entry.getValue().equalsIgnoreCase(normalizedValue) ||
+                 entry.getLabel().equalsIgnoreCase(normalizedValue))) {
+                return entry.getValue();
+            }
+        }
+
+        return null;
     }
     
     public static void setEmailField(List<Contact> contacts) {
