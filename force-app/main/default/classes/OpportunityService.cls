@@ -28,6 +28,7 @@ public class OpportunityService implements IOpportunityService {
             request,
             accountId
         );
+        opportunity.npsp__Primary_Contact__c = contactId;
         insert opportunity;
         return opportunity;
     }

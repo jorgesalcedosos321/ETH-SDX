@@ -27,18 +27,19 @@ public inherited sharing class ValidationService {
                     'Account name is required for corporate donors.'
                 );
             }
-        } else {
-            if (String.isBlank(request.firstName)) {
-                throw new DonationValidationException('First Name is required.');
-            }
 
-            if (String.isBlank(request.lastName)) {
-                throw new DonationValidationException('Last Name is required.');
-            }
+        }
 
-            if (String.isBlank(request.email) || !isValidEmail(request.email)) {
-                throw new DonationValidationException('Email is required.');
-            }
+        if (String.isBlank(request.firstName)) {
+            throw new DonationValidationException('First Name is required.');
+        }
+
+        if (String.isBlank(request.lastName)) {
+            throw new DonationValidationException('Last Name is required.');
+        }
+
+        if (String.isBlank(request.email) || !isValidEmail(request.email)) {
+            throw new DonationValidationException('Email is required.');
         }
 
     }

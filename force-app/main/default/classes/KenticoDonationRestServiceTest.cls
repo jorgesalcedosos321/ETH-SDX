@@ -37,12 +37,15 @@ private class KenticoDonationRestServiceTest {
         invokeOneOff(request);
 
         Account donor = [SELECT Id, Email__c, Phone FROM Account WHERE Name = :request.accountName LIMIT 1];
+        Contact primaryContact = corporatePrimaryContact(request, donor.Id);
         Opportunity donation = donationFromResponse();
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
         Assert.areEqual(request.email, donor.Email__c);
         Assert.areEqual(request.phone, donor.Phone);
         Assert.areEqual(donor.Id, donation.AccountId);
-        Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
+        Assert.areEqual(request.firstName, primaryContact.FirstName);
+        Assert.areEqual(request.lastName, primaryContact.LastName);
+        Assert.areEqual(primaryContact.Id, donation.npsp__Primary_Contact__c);
         Assert.areEqual(
             1,
             [
@@ -114,12 +117,16 @@ private class KenticoDonationRestServiceTest {
 
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
         Account donor = [SELECT Id FROM Account WHERE Name = :request.accountName LIMIT 1];
+        Contact primaryContact = corporatePrimaryContact(request, donor.Id);
         npe03__Recurring_Donation__c recurringDonation = recurringDonationFromResponse();
+        Opportunity donation = donationFromResponse();
         Assert.areEqual(donor.Id, recurringDonation.npe03__Organization__c);
         Assert.isNull(recurringDonation.npe03__Contact__c);
         Assert.areEqual(ApiConstants.DONOR_CORPORATE, recurringDonation.Donor_Type__c);
         Assert.areEqual('020-502-0001', recurringDonation.Sponsorship_ID__c);
-        Assert.areEqual(0, [SELECT COUNT() FROM Contact WHERE Email = :request.email]);
+        Assert.areEqual(request.firstName, primaryContact.FirstName);
+        Assert.areEqual(request.lastName, primaryContact.LastName);
+        Assert.areEqual(primaryContact.Id, donation.npsp__Primary_Contact__c);
 
     }
 
@@ -285,7 +292,25 @@ private class KenticoDonationRestServiceTest {
 
     private static Opportunity donationFromResponse() {
         DonationResponse response = response();
-        return [SELECT Id, AccountId FROM Opportunity WHERE Id = :response.donationId];
+        return [
+            SELECT Id, AccountId, npsp__Primary_Contact__c
+            FROM Opportunity
+            WHERE Id = :response.donationId
+        ];
+    }
+
+    private static Contact corporatePrimaryContact(
+        DonationRequest request,
+        Id accountId
+    ) {
+        return [
+            SELECT Id, AccountId, FirstName, LastName, Email, Phone,
+                   MailingStreet, MailingCity, MailingState,
+                   MailingPostalCode, MailingCountry
+            FROM Contact
+            WHERE AccountId = :accountId AND Email = :request.email
+            LIMIT 1
+        ];
     }
 
     private static npe03__Recurring_Donation__c recurringDonationFromResponse() {

@@ -39,13 +39,14 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         Boolean isCorporate = isCorporateDonor(request);
 
-        Contact contact = isCorporate
-            ? null
-            : ContactService.createOrUpdate(request);
-
         Account account = isCorporate
             ? AccountService.createOrUpdate(request)
             : null;
+
+        Contact contact = ContactService.createOrUpdate(
+            request,
+            isCorporate ? account.Id : null
+        );
 
         Id accountId = isCorporate ? account.Id : contact.AccountId;
 
@@ -64,8 +65,13 @@ public class RecurringDonationService implements IRecurringDonationService {
             opportunity = OpportunityService.createDonation(
                 request,
                 accountId,
-                contact == null ? null : contact.Id
+                contact.Id
             );
+        }
+
+        if (recurringDonation != null) {
+            opportunity.npsp__Primary_Contact__c = contact.Id;
+            update opportunity;
         }
 
         DonationResponse response = new DonationResponse();
@@ -90,16 +96,16 @@ public class RecurringDonationService implements IRecurringDonationService {
         ValidationService.validate(request);
         Boolean isCorporate = isCorporateDonor(request);
 
-        // Create or update Contact
-        Contact contact = isCorporate
-            ? null
-            : ContactService.createOrUpdate(request);
-        
         // Corporate Accounts are handled explicitly. Individual Accounts are
         // created automatically when the Contact is inserted.
         Account account = isCorporate
             ? AccountService.createOrUpdate(request)
             : null;
+
+        Contact contact = ContactService.createOrUpdate(
+            request,
+            isCorporate ? account.Id : null
+        );
 
         // Sponsorships are always recurring
         npe03__Recurring_Donation__c recurringDonation =
@@ -109,6 +115,8 @@ public class RecurringDonationService implements IRecurringDonationService {
             );
         
         Opportunity opportunity = getGeneratedOpportunity(recurringDonation.Id);
+        opportunity.npsp__Primary_Contact__c = contact.Id;
+        update opportunity;
         
         DonationResponse response = new DonationResponse();
         response.success = true;

@@ -4,13 +4,24 @@ public with sharing class ContactService {
      */
     //SFESWCSD-92
     public static Contact createOrUpdate(DonationRequest request) {
+        return createOrUpdate(request, null);
+    }
+
+    public static Contact createOrUpdate(
+        DonationRequest request,
+        Id accountId
+    ) {
         Contact contact = findContact(request);
 
         if (contact == null) {
             contact = buildContact(request);
+            contact.AccountId = accountId;
             insert contact;
         } else {
             updateContact(contact, request);
+            if (accountId != null) {
+                contact.AccountId = accountId;
+            }
             update contact;
         }
 
@@ -60,6 +71,8 @@ public with sharing class ContactService {
 
         contact.MailingStreet = request.mailingStreet;
         contact.MailingCity = request.city;
+        contact.MailingState = request.mailingState;
+        contact.MailingPostalCode = request.mailingPostalCode;
         contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;
@@ -76,11 +89,16 @@ public with sharing class ContactService {
     ) {
 
         contact.Salutation = request.salutation;
+        contact.FirstName = request.firstName;
+        contact.LastName = request.lastName;
+        contact.Email = request.email;
         contact.Phone = request.phone;
         contact.Birthdate = request.birthday;
 
         contact.MailingStreet = request.mailingStreet;
         contact.MailingCity = request.city;
+        contact.MailingState = request.mailingState;
+        contact.MailingPostalCode = request.mailingPostalCode;
         contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;

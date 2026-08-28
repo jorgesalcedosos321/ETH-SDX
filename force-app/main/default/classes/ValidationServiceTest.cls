@@ -13,6 +13,18 @@ private class ValidationServiceTest {
             'Account name is required for corporate donors.'
         );
 
+        corporate = validRequest();
+        corporate.donorType = ApiConstants.DONOR_CORPORATE;
+        corporate.accountName = 'Corporate Donor';
+        corporate.firstName = null;
+        assertValidationError(corporate, 'First Name is required.');
+
+        corporate = validRequest();
+        corporate.donorType = ApiConstants.DONOR_CORPORATE;
+        corporate.accountName = 'Corporate Donor';
+        corporate.lastName = null;
+        assertValidationError(corporate, 'Last Name is required.');
+
         DonationRequest individual = validRequest();
         individual.firstName = null;
         assertValidationError(individual, 'First Name is required.');
