@@ -248,7 +248,7 @@ private class KenticoDonationRestServiceTest {
         callback.recurringUUID = donationRequest.recurringUUID;
         callback.paymentStatus = 'SUCCESS';
         callback.amount = donationRequest.donationAmount;
-        callback.transactionDate = Datetime.now();
+        callback.transactionDate = Date.today();
         callback.referenceId = 'ARIFPAY-' + donationRequest.donorType;
         callback.paymentMethod = donationRequest.paymentMethod;
         callback.cardHolder = donationRequest.donorType == ApiConstants.DONOR_CORPORATE

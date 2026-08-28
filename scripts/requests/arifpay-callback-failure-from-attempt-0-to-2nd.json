@@ -1,0 +1,15 @@
+{
+    "donationId": "DONATION-SPONSORSHIP-001",
+    "recurringUUID": "RECURRING-SPONSORSHIP-001",
+    "paymentStatus": "FAILURE",
+    "amount": 50.00,
+    "transactionDate": "2026-08-27T12:00:00.000Z",
+    "referenceId": "ARIFPAY-FAILURE-ATTEMPT-001",
+    "paymentMethod": "Credit Card",
+    "cardHolder": "Jane Doe",
+    "creditCardType": "Visa",
+    "cardLast4Digits": "4242",
+    "cardExpiryMonth": 12,
+    "cardExpiryYear": 2028,
+    "currencyEN": "USD"
+}

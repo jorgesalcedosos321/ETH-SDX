@@ -7,7 +7,7 @@ public class ArifPayCallbackRequest {
     public String recurringUUID;
     public String paymentStatus;
     public Decimal amount;
-    public Datetime transactionDate;
+    public Date transactionDate;
     public String referenceId;
     public String paymentMethod;
     public String cardHolder;

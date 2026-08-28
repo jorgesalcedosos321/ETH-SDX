@@ -21,16 +21,16 @@ public inherited sharing class CallbackService {
                 'Recurring Donation not found.'
             );
         }
-
-        Integer month = Date.today().month(); //Integer.valueOf(request.month);
-        Date todayDate = Date.today(); //Date.newInstance(Integer.valueOf(request.year), month, Integer.valueOf(request.day));
-
+        Date todayDate = Date.today();
+        Date transactionDate = request.transactionDate != NULL ? request.transactionDate : Date.today();
+        Integer month = transactionDate.month(); //Integer.valueOf(request.month);
+        
         List<npe01__OppPayment__c> payments = [SELECT Id, npe01__Opportunity__c, npe01__Opportunity__r.npsp__Recurring_Donation_Installment_Number__c, npe01__Opportunity__r.npe03__Recurring_Donation__c, npe01__Scheduled_Date__c, Scheduled_Date_2nd_Attempt__c, Scheduled_Date_3rd_Attempt__c, Failed_Payment_Attempts__c, npe01__Paid__c, npe01__Written_Off__c, npe01__Payment_Amount__c, npe01__Payment_Date__c, npe01__Check_Reference_Number__c, Status__c
             FROM npe01__OppPayment__c
             WHERE npe01__Opportunity__r.npe03__Recurring_Donation__c = :recurringDonations[0].Id AND
-                  ((CALENDAR_MONTH(npe01__Scheduled_Date__c) =: month AND CALENDAR_YEAR(npe01__Scheduled_Date__c) =: todayDate.year() AND (Failed_Payment_Attempts__c = 0 OR Failed_Payment_Attempts__c = NULL)) OR
-                   (CALENDAR_MONTH(Scheduled_Date_2nd_Attempt__c) =: month AND CALENDAR_YEAR(Scheduled_Date_2nd_Attempt__c) =: todayDate.year() AND Failed_Payment_Attempts__c = 1) OR //SFEUCMSD-2197
-                   (CALENDAR_MONTH(Scheduled_Date_3rd_Attempt__c) =: month AND CALENDAR_YEAR(Scheduled_Date_3rd_Attempt__c) =: todayDate.year() AND Failed_Payment_Attempts__c = 2)) AND //SFEUCMSD-2197
+                  ((CALENDAR_MONTH(npe01__Scheduled_Date__c) =: month AND CALENDAR_YEAR(npe01__Scheduled_Date__c) =: transactionDate.year() AND (Failed_Payment_Attempts__c = 0 OR Failed_Payment_Attempts__c = NULL)) OR
+                   (CALENDAR_MONTH(Scheduled_Date_2nd_Attempt__c) =: month AND CALENDAR_YEAR(Scheduled_Date_2nd_Attempt__c) =: transactionDate.year() AND Failed_Payment_Attempts__c = 1) OR //SFEUCMSD-2197
+                   (CALENDAR_MONTH(Scheduled_Date_3rd_Attempt__c) =: month AND CALENDAR_YEAR(Scheduled_Date_3rd_Attempt__c) =: transactionDate.year() AND Failed_Payment_Attempts__c = 2)) AND //SFEUCMSD-2197
                    npe01__Written_Off__c = false AND npe01__Paid__c = false
             ORDER BY npe01__Scheduled_Date__c];
 
@@ -57,7 +57,7 @@ public inherited sharing class CallbackService {
 
             if (paid1stAttempt || paid2ndAttempt) {
                 System.debug('enter');
-                currentOpp.closeDate = todayDate; //First step
+                currentOpp.closeDate = Date.today(); //First step
                 currentOpp.StageName = 'Missed'; //First step                   
                 currentPayment.npe01__Written_Off__c = true; //First step
                 updateNextPaymentToPaidByRD(currentPayment.npe01__Opportunity__r.npe03__Recurring_Donation__c, currentPayment.npe01__Opportunity__r.npsp__Recurring_Donation_Installment_Number__c + 1, todayDate); //Second step
@@ -100,7 +100,7 @@ public inherited sharing class CallbackService {
                 currentPayment.npe01__Written_Off__c = true;
             }
 
-            currentPayment.npe01__Payment_Date__c = request.transactionDate.date();
+            currentPayment.npe01__Payment_Date__c = request.transactionDate;
             currentPayment.npe01__Check_Reference_Number__c = request.referenceId;
             UPDATE currentPayment;
         }

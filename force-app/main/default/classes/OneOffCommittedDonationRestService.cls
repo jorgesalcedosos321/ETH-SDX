@@ -70,9 +70,8 @@ global inherited sharing class OneOffCommittedDonationRestService {
     private static Boolean isSponsorship(
         DonationRequest request
     ) {
-        return
-            !String.isBlank(request.sponsorshipType)
-            || !String.isBlank(request.sponsorshipId);
+        return (String.isNotBlank(request.donationType) && request.donationType == ApiConstants.DONATION_TYPE_SPONSORSHIP);
+            //&& (!String.isBlank(request.sponsorshipType) || !String.isBlank(request.sponsorshipId));
     }
 
     /**

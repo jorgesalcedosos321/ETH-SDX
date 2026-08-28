@@ -1,0 +1,15 @@
+{
+    "donationId": "DONATION-SPONSORSHIP-002",
+    "recurringUUID": "RECURRING-SPONSORSHIP-002",
+    "paymentStatus": "SUCCESS",
+    "amount": 50.00,
+    "transactionDate": "2026-08-27T12:10:00.000Z",
+    "referenceId": "ARIFPAY-SUCCESS-ATTEMPT-000",
+    "paymentMethod": "Credit Card",
+    "cardHolder": "John Doe",
+    "creditCardType": "Visa",
+    "cardLast4Digits": "1111",
+    "cardExpiryMonth": 12,
+    "cardExpiryYear": 2028,
+    "currencyEN": "USD"
+}
