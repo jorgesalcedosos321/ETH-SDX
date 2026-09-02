@@ -123,6 +123,37 @@ public class RecurringDonationTest {
         Test.stopTest();
     }
 
+    //SFESWCSD-85 case 2
+    @isTest
+    static void buildsSponsorshipRegistrationCallTask() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c recurringDonation =
+            createRecurringDonation(con.Id, null);
+        recurringDonation.Donation_Type__c = ApiConstants.DONATION_SPONSORSHIP;
+        Datetime deadline = System.now().addDays(3);
+
+        List<Task> tasks =
+            RecurringDonationService.buildSponsorshipRegistrationTasks(
+                new List<npe03__Recurring_Donation__c>{ recurringDonation },
+                UserInfo.getUserId(),
+                deadline,
+                new Map<Id, Contact>{ con.Id => con }
+            );
+
+        System.assertEquals(1, tasks.size());
+        Task registrationTask = tasks[0];
+        System.assertEquals('Registration Confirmation', registrationTask.Subject);
+        System.assertEquals('Call', registrationTask.Type);
+        System.assertEquals(con.Id, registrationTask.WhoId);
+        System.assertEquals(recurringDonation.Id, registrationTask.WhatId);
+        System.assertEquals(deadline.date(), registrationTask.ActivityDate);
+        System.assertEquals(deadline, registrationTask.ReminderDateTime);
+        System.assert(registrationTask.IsReminderSet);
+        System.assert(registrationTask.Description.contains(con.FirstName));
+        System.assert(registrationTask.Description.contains(con.LastName));
+    }
+
     //SFESWCSD-85 case 11
     @isTest
     static void buildsCancellationTargetForSponsorshipWithFuturePledge() {

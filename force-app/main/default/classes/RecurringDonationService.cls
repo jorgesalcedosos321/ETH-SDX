@@ -399,6 +399,104 @@ public class RecurringDonationService implements IRecurringDonationService {
         return targets;
     }
 
+    //SFESWCSD-85 case 2
+    public void createSponsorshipRegistrationTasks(
+        List<npe03__Recurring_Donation__c> newRecords
+    ) {
+        List<User> assignees = [
+            SELECT Id
+            FROM User
+            WHERE Email = 'beza.teklu@sos-ethiopia.org'
+            AND IsActive = true
+            LIMIT 1
+        ];
+        if (assignees.isEmpty()) {
+            System.debug(
+                '###createSponsorshipRegistrationTasks: active assignee not found'
+            );
+            return;
+        }
+
+        Set<Id> contactIds = new Set<Id>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            if (
+                recurringDonation.Donation_Type__c == ApiConstants.DONATION_SPONSORSHIP &&
+                recurringDonation.npe03__Contact__c != null
+            ) {
+                contactIds.add(recurringDonation.npe03__Contact__c);
+            }
+        }
+        if (contactIds.isEmpty()) {
+            return;
+        }
+
+        Map<Id, Contact> contactsById = new Map<Id, Contact>([
+            SELECT Id, FirstName, LastName
+            FROM Contact
+            WHERE Id IN :contactIds
+        ]);
+        BusinessHours defaultBusinessHours = [
+            SELECT Id
+            FROM BusinessHours
+            WHERE IsDefault = true
+            LIMIT 1
+        ];
+        Datetime deadline = BusinessHours.add(
+            defaultBusinessHours.Id,
+            System.now(),
+            24L * 60 * 60 * 1000
+        );
+        List<Task> tasks = buildSponsorshipRegistrationTasks(
+            newRecords,
+            assignees[0].Id,
+            deadline,
+            contactsById
+        );
+        if (!tasks.isEmpty()) {
+            insert tasks;
+        }
+    }
+
+    @TestVisible
+    private static List<Task> buildSponsorshipRegistrationTasks(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Id ownerId,
+        Datetime deadline,
+        Map<Id, Contact> contactsById
+    ) {
+        List<Task> tasks = new List<Task>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            Contact contact = contactsById.get(
+                recurringDonation.npe03__Contact__c
+            );
+            if (
+                recurringDonation.Donation_Type__c != ApiConstants.DONATION_SPONSORSHIP ||
+                contact == null
+            ) {
+                continue;
+            }
+
+            String contactName = (
+                (String.isBlank(contact.FirstName) ? '' : contact.FirstName + ' ') +
+                contact.LastName
+            ).trim();
+            tasks.add(new Task(
+                OwnerId = ownerId,
+                Subject = 'Registration Confirmation',
+                Description = 'Contact: ' + contactName,
+                Type = 'Call',
+                WhoId = contact.Id,
+                WhatId = recurringDonation.Id,
+                ActivityDate = deadline.date(),
+                ReminderDateTime = deadline,
+                IsReminderSet = true,
+                Status = 'Not Started',
+                Priority = 'Normal'
+            ));
+        }
+        return tasks;
+    }
+
     //SFESWCSD-85 case 11
     public void sendSponsorshipCancellationEmail(
         List<npe03__Recurring_Donation__c> newRecords,

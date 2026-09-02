@@ -20,6 +20,8 @@ public class RecurringDonationHandler {
     //SFESWCSD-85 case 1
     public void afterInsert(List<npe03__Recurring_Donation__c> newRecords) {
         rds.sendSponsorshipWelcomeEmail(newRecords);
+        //SFESWCSD-85 case 2
+        rds.createSponsorshipRegistrationTasks(newRecords);
     }
     
     public void afterUpdate(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
