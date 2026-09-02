@@ -161,6 +161,41 @@ private class SendEmailNotificationBatchTest {
         System.assertEquals(new Set<Id>{ eligibleContact.Id }, selectedIds);
     }
 
+    @isTest
+    static void reportSelectorsExcludeInactiveSponsorshipsAndMissingEmails() {
+        Account account = [SELECT Id FROM Account LIMIT 1];
+        Contact inactiveContact = new Contact(
+            FirstName = 'Inactive',
+            LastName = 'Sponsor',
+            AccountId = account.Id,
+            Email = 'inactive@example.com'
+        );
+        insert inactiveContact;
+        npe03__Recurring_Donation__c inactiveSponsorship =
+            createSponsorship(inactiveContact.Id);
+        inactiveSponsorship.npsp__Status__c = 'Closed';
+        update inactiveSponsorship;
+
+        Contact missingEmailContact = [
+            SELECT Id
+            FROM Contact
+            WHERE Email = null
+            LIMIT 1
+        ];
+        createSponsorship(missingEmailContact.Id);
+
+        for (String templateKey : new List<String>{
+            Utils.MID_YEAR_REPORT_PDF,
+            Utils.END_OF_YEAR_REPORT_P
+        }) {
+            Set<Id> selectedIds = queryLocatorIds(
+                new SendEmailNotificationBatch(templateKey).start(null)
+            );
+            System.assert(!selectedIds.contains(inactiveContact.Id));
+            System.assert(!selectedIds.contains(missingEmailContact.Id));
+        }
+    }
+
     //SFESWCSD-85 case 7
     @isTest
     static void selectsContactsWithActiveSponsorshipsForEndOfYearReport() {
@@ -280,6 +315,15 @@ private class SendEmailNotificationBatchTest {
                 1,
                 Date.today()
             )
+        );
+        System.assertEquals(
+            null,
+            SendEmailNotificationBatch.getReminderOpportunity(
+                new List<Opportunity>{ firstMiss },
+                1,
+                Date.today().addDays(1)
+            ),
+            'Reminder must run exactly one month after the missed payment'
         );
     }
 

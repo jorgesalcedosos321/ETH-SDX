@@ -22,9 +22,14 @@ public class RecurringDonationHandler {
         rds.sendSponsorshipWelcomeEmail(newRecords);
         //SFESWCSD-85 case 2
         rds.createSponsorshipRegistrationTasks(newRecords);
+        //SFESWCSD-91
+        rds.sendFirstCommittedDonationWelcomeEmail(newRecords);
     }
     
     public void afterUpdate(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
+        //SFESWCSD-91
+        rds.sendSuccessfulPaymentMilestoneEmails(newRecords, oldRecords);
+        rds.createSixPaymentLoyaltyCallTasks(newRecords, oldRecords);
         //SFESWCSD-85 case 11
         rds.sendSponsorshipCancellationEmail(newRecords, oldRecords);
         rds.closeOpportunitiesFromClosedRDs(newRecords, oldRecords);

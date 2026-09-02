@@ -431,7 +431,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
 
         Map<Id, Contact> contactsById = new Map<Id, Contact>([
-            SELECT Id, FirstName, LastName
+            SELECT Id, FirstName, LastName, Email, Phone
             FROM Contact
             WHERE Id IN :contactIds
         ]);
@@ -476,14 +476,16 @@ public class RecurringDonationService implements IRecurringDonationService {
                 continue;
             }
 
-            String contactName = (
-                (String.isBlank(contact.FirstName) ? '' : contact.FirstName + ' ') +
-                contact.LastName
+            String description = ('First Name: ' + (contact.FirstName == null ? '' : contact.FirstName) + ' ' + contact.LastName + ' \n' +
+                'Last Name: ' + (contact.LastName == null ? '' : contact.LastName) + '\n' +
+                'Phone: ' + (contact.Phone == null ? '' : contact.Phone) + '\n' +
+                'Email: ' + (contact.Email == null ? '' : contact.Email)
             ).trim();
+
             tasks.add(new Task(
                 OwnerId = ownerId,
                 Subject = 'Registration Confirmation',
-                Description = 'Contact: ' + contactName,
+                Description = 'Contact: ' + description,
                 Type = 'Call',
                 WhoId = contact.Id,
                 WhatId = recurringDonation.Id,
@@ -493,6 +495,354 @@ public class RecurringDonationService implements IRecurringDonationService {
                 Status = 'Not Started',
                 Priority = 'Normal'
             ));
+        }
+        return tasks;
+    }
+
+    //SFESWCSD-91
+    public void sendFirstCommittedDonationWelcomeEmail(
+        List<npe03__Recurring_Donation__c> newRecords
+    ) {
+        Map<Id, Integer> newCountsByContact = new Map<Id, Integer>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            if (
+                recurringDonation.Donation_Type__c == 'Recurring Donation' &&
+                recurringDonation.npe03__Contact__c != null
+            ) {
+                Id contactId = recurringDonation.npe03__Contact__c;
+                newCountsByContact.put(
+                    contactId,
+                    (newCountsByContact.containsKey(contactId)
+                        ? newCountsByContact.get(contactId)
+                        : 0) + 1
+                );
+            }
+        }
+        if (newCountsByContact.isEmpty()) {
+            return;
+        }
+
+        Set<Id> contactIds = newCountsByContact.keySet();
+        Map<Id, Integer> totalCountsByContact = new Map<Id, Integer>();
+        for (AggregateResult result : [
+            SELECT npe03__Contact__c contactId, COUNT(Id) donationCount
+            FROM npe03__Recurring_Donation__c
+            WHERE npe03__Contact__c IN :contactIds
+            AND Donation_Type__c = 'Recurring Donation'
+            GROUP BY npe03__Contact__c
+        ]) {
+            totalCountsByContact.put(
+                (Id) result.get('contactId'),
+                Integer.valueOf(result.get('donationCount'))
+            );
+        }
+
+        Map<Id, Id> targets = buildFirstCommittedDonationTargets(
+            newRecords,
+            newCountsByContact,
+            totalCountsByContact
+        );
+        if (targets.isEmpty()) {
+            return;
+        }
+        Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+            Utils.WELCOME_THE_NEW_DONO,
+            targets
+        );
+        System.debug(
+            '###sendFirstCommittedDonationWelcomeEmail: ' + accepted.size() +
+            ' of ' + targets.size() + ' emails accepted'
+        );
+
+        createFirstCommittedDonationCallTasks(
+            newRecords,
+            targets
+        );
+    }
+
+    //SFESWCSD-91
+    private static void createFirstCommittedDonationCallTasks(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, Id> targets
+    ) {
+        Map<Id, npe03__Recurring_Donation__c> donationsById =
+            new Map<Id, npe03__Recurring_Donation__c>(newRecords);
+        Set<Id> contactIds = targets.keySet();
+        Map<Id, Contact> contactsById = new Map<Id, Contact>([
+            SELECT Id, FirstName, LastName, Email, Phone
+            FROM Contact
+            WHERE Id IN :contactIds
+        ]);
+        BusinessHours defaultBusinessHours = [
+            SELECT Id
+            FROM BusinessHours
+            WHERE IsDefault = true
+            LIMIT 1
+        ];
+        Datetime candidateDeadline = System.now().addHours(24);
+        Datetime deadline = BusinessHours.isWithin(
+            defaultBusinessHours.Id,
+            candidateDeadline
+        )
+            ? candidateDeadline
+            : BusinessHours.nextStartDate(
+                defaultBusinessHours.Id,
+                candidateDeadline
+            );
+        Set<Id> ownerIds = new Map<Id, User>([
+            SELECT Id
+            FROM User
+            WHERE Email IN (
+                'Yonas.Hailu@sos-ethiopia.org',
+                'beza.teklu@sos-ethiopia.org'
+            )
+            AND IsActive = true
+        ]).keySet();
+        if (ownerIds.isEmpty()) {
+            System.debug(
+                '###createFirstCommittedDonationCallTasks: active assignees not found'
+            );
+            return;
+        }
+        List<Task> tasks = buildFirstCommittedDonationCallTasks(
+            targets,
+            donationsById,
+            contactsById,
+            deadline,
+            ownerIds
+        );
+        if (!tasks.isEmpty()) {
+            insert tasks;
+        }
+    }
+
+    @TestVisible
+    private static List<Task> buildFirstCommittedDonationCallTasks(
+        Map<Id, Id> targets,
+        Map<Id, npe03__Recurring_Donation__c> donationsById,
+        Map<Id, Contact> contactsById,
+        Datetime deadline,
+        Set<Id> ownerIds
+    ) {
+        List<Task> tasks = new List<Task>();
+        for (Id contactId : targets.keySet()) {
+            npe03__Recurring_Donation__c recurringDonation =
+                donationsById.get(targets.get(contactId));
+            Contact contact = contactsById.get(contactId);
+            if (recurringDonation == null || contact == null) {
+                continue;
+            }
+            String description =
+                'First Name: ' + (contact.FirstName == null ? '' : contact.FirstName) + '\n' +
+                'Last Name: ' + (contact.LastName == null ? '' : contact.LastName) + '\n' +
+                'Email: ' + (contact.Email == null ? '' : contact.Email) + '\n' +
+                'Phone: ' + (contact.Phone == null ? '' : contact.Phone);
+            for (Id ownerId : ownerIds) {
+                tasks.add(new Task(
+                    OwnerId = ownerId,
+                    Subject = 'Welcome the new donor',
+                    Description = description,
+                    Type = 'Call',
+                    WhoId = contact.Id,
+                    WhatId = recurringDonation.Id,
+                    ActivityDate = deadline.date(),
+                    ReminderDateTime = deadline,
+                    IsReminderSet = true,
+                    Status = 'Not Started',
+                    Priority = 'Normal'
+                ));
+            }
+        }
+        return tasks;
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildFirstCommittedDonationTargets(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, Integer> newCountsByContact,
+        Map<Id, Integer> totalCountsByContact
+    ) {
+        Map<Id, Id> targets = new Map<Id, Id>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            Id contactId = recurringDonation.npe03__Contact__c;
+            if (
+                recurringDonation.Donation_Type__c == 'Recurring Donation' &&
+                contactId != null &&
+                !targets.containsKey(contactId) &&
+                totalCountsByContact.get(contactId) ==
+                    newCountsByContact.get(contactId)
+            ) {
+                targets.put(contactId, recurringDonation.Id);
+            }
+        }
+        return targets;
+    }
+
+    //SFESWCSD-91
+    public void sendSuccessfulPaymentMilestoneEmails(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
+    ) {
+        Map<String, Map<Id, Id>> targetsByTemplate =
+            buildSuccessfulPaymentMilestoneTargets(newRecords, oldRecords);
+        for (String templateKey : targetsByTemplate.keySet()) {
+            Map<Id, Id> targets = targetsByTemplate.get(templateKey);
+            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+                templateKey,
+                targets
+            );
+            System.debug(
+                '###sendSuccessfulPaymentMilestoneEmails ' + templateKey +
+                ': ' + accepted.size() + ' of ' + targets.size() +
+                ' emails accepted'
+            );
+        }
+    }
+
+    @TestVisible
+    private static Map<String, Map<Id, Id>>
+        buildSuccessfulPaymentMilestoneTargets(
+            List<npe03__Recurring_Donation__c> newRecords,
+            Map<Id, npe03__Recurring_Donation__c> oldRecords
+        ) {
+        Map<Integer, String> templatesByPaymentCount = new Map<Integer, String>{
+            2 => Utils.THANK_YOU_EMAIL_AFTER_2,
+            3 => Utils.THANK_YOU_EMAIL_AFTER_3,
+            4 => Utils.THANK_YOU_EMAIL_AFTER_4,
+            6 => Utils.THANK_YOU_EMAIL_AFTER_6,
+            12 => Utils.THANK_YOU_EMAIL_AFTER_12
+        };
+        Map<String, Map<Id, Id>> targetsByTemplate =
+            new Map<String, Map<Id, Id>>();
+
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            npe03__Recurring_Donation__c oldRecurringDonation =
+                oldRecords.get(recurringDonation.Id);
+            Decimal newCount =
+                recurringDonation.npe03__Total_Paid_Installments__c;
+            Decimal oldCount = oldRecurringDonation == null ||
+                oldRecurringDonation.npe03__Total_Paid_Installments__c == null
+                ? 0
+                : oldRecurringDonation.npe03__Total_Paid_Installments__c;
+            if (
+                recurringDonation.Donation_Type__c != 'Recurring Donation' ||
+                recurringDonation.npe03__Contact__c == null ||
+                newCount == null ||
+                newCount <= oldCount
+            ) {
+                continue;
+            }
+
+            String templateKey = templatesByPaymentCount.get(
+                newCount.intValue()
+            );
+            if (templateKey == null || newCount != newCount.intValue()) {
+                continue;
+            }
+            if (!targetsByTemplate.containsKey(templateKey)) {
+                targetsByTemplate.put(templateKey, new Map<Id, Id>());
+            }
+            targetsByTemplate.get(templateKey).put(
+                recurringDonation.npe03__Contact__c,
+                recurringDonation.Id
+            );
+        }
+        return targetsByTemplate;
+    }
+
+    //SFESWCSD-91
+    public void createSixPaymentLoyaltyCallTasks(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
+    ) {
+        List<npe03__Recurring_Donation__c> eligibleDonations =
+            new List<npe03__Recurring_Donation__c>();
+        Set<Id> contactIds = new Set<Id>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            npe03__Recurring_Donation__c oldRecurringDonation =
+                oldRecords.get(recurringDonation.Id);
+            Decimal oldCount = oldRecurringDonation == null ||
+                oldRecurringDonation.npe03__Total_Paid_Installments__c == null
+                ? 0
+                : oldRecurringDonation.npe03__Total_Paid_Installments__c;
+            if (
+                recurringDonation.Donation_Type__c == 'Recurring Donation' &&
+                recurringDonation.npe03__Contact__c != null &&
+                recurringDonation.npe03__Total_Paid_Installments__c == 6 &&
+                oldCount < 6
+            ) {
+                eligibleDonations.add(recurringDonation);
+                contactIds.add(recurringDonation.npe03__Contact__c);
+            }
+        }
+        if (eligibleDonations.isEmpty()) {
+            return;
+        }
+
+        Set<Id> ownerIds = new Map<Id, User>([
+            SELECT Id
+            FROM User
+            WHERE Email IN (
+                'Yonas.Hailu@sos-ethiopia.org',
+                'beza.teklu@sos-ethiopia.org'
+            )
+            AND IsActive = true
+        ]).keySet();
+        if (ownerIds.isEmpty()) {
+            System.debug(
+                '###createSixPaymentLoyaltyCallTasks: active assignees not found'
+            );
+            return;
+        }
+
+        Map<Id, Contact> contactsById = new Map<Id, Contact>([
+            SELECT Id, FirstName, LastName, Phone, Email
+            FROM Contact
+            WHERE Id IN :contactIds
+        ]);
+        List<Task> tasks = buildSixPaymentLoyaltyCallTasks(
+            eligibleDonations,
+            ownerIds,
+            contactsById
+        );
+        if (!tasks.isEmpty()) {
+            insert tasks;
+        }
+    }
+
+    @TestVisible
+    private static List<Task> buildSixPaymentLoyaltyCallTasks(
+        List<npe03__Recurring_Donation__c> recurringDonations,
+        Set<Id> ownerIds,
+        Map<Id, Contact> contactsById
+    ) {
+        List<Task> tasks = new List<Task>();
+        for (npe03__Recurring_Donation__c recurringDonation :
+            recurringDonations) {
+            Contact contact = contactsById.get(
+                recurringDonation.npe03__Contact__c
+            );
+            if (contact == null) {
+                continue;
+            }
+            String description =
+                'First Name: ' + (contact.FirstName == null ? '' : contact.FirstName) + '\n' +
+                'Last Name: ' + (contact.LastName == null ? '' : contact.LastName) + '\n' +
+                'Phone: ' + (contact.Phone == null ? '' : contact.Phone) + '\n' +
+                'Email: ' + (contact.Email == null ? '' : contact.Email);
+            for (Id ownerId : ownerIds) {
+                tasks.add(new Task(
+                    OwnerId = ownerId,
+                    Subject = 'Loyalty call after 6 payments',
+                    Description = description,
+                    Type = 'Call',
+                    WhoId = contact.Id,
+                    WhatId = recurringDonation.Id,
+                    ActivityDate = Date.today(),
+                    Status = 'Not Started',
+                    Priority = 'Normal'
+                ));
+            }
         }
         return tasks;
     }

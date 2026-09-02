@@ -74,6 +74,30 @@ public class OpportunityTest {
             firstInstallmentOpportunityId,
             targets.get(recurringContactId)
         );
+
+        Opportunity noContact = new Opportunity(
+            Id = Id.valueOf('006000000000005'),
+            StageName = 'Closed Won'
+        );
+        Opportunity notWon = new Opportunity(
+            Id = Id.valueOf('006000000000006'),
+            StageName = 'Pledged',
+            ContactId = nonRecurringContactId
+        );
+        targets = OpportunityService.buildPaymentConfirmationTargets(
+            new List<Opportunity>{ noContact, notWon },
+            new Map<Id, Opportunity>{
+                noContact.Id => new Opportunity(
+                    Id = noContact.Id,
+                    StageName = 'Pledged'
+                ),
+                notWon.Id => new Opportunity(
+                    Id = notWon.Id,
+                    StageName = 'Prospecting'
+                )
+            }
+        );
+        System.assertEquals(0, targets.size());
     }
 
     // Helper method to create test data

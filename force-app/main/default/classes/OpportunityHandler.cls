@@ -31,7 +31,7 @@ public class OpportunityHandler {
         opp.sendPaymentConfirmationEmail(newRecords, oldRecords);
         //opp.checkOpportunitiesWithRDToNotify(newRecords,oldRecords);
         opp.checkOpportunitiesWithNoRDToNotify(newRecords,oldRecords);
-        opp.sendEmailNotificationForInstallments(newRecords,oldRecords); //SFESWCSD-40       
+        // Replaced by RecurringDonationService milestone emails. //SFESWCSD-91
         opp.sendEmailNotificationForThreeDeclinedOpps(newRecords,oldRecords); //SFESWCSD-40  
         opp.closeRecurringDonationWhenOpportunityIsCloseLost(newRecords,oldRecords);
     }
