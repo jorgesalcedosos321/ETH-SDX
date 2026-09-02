@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>DLE_Failed_Sends</fullName>
+    <columns>NAME</columns>
+    <columns>CREATED_DATE</columns>
+    <columns>Event_Key__c</columns>
+    <columns>Template_DeveloperName__c</columns>
+    <columns>Recipient_Type__c</columns>
+    <columns>Recipient_Id__c</columns>
+    <columns>Attachment_Provider__c</columns>
+    <columns>Error__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Status__c</field>
+        <operation>equals</operation>
+        <value>Failed</value>
+    </filters>
+    <label>Failed Sends</label>
+</ListView>

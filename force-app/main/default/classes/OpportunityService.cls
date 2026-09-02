@@ -220,6 +220,33 @@ public class OpportunityService implements IOpportunityService {
             UPDATE conts;
         }
     }*/
+
+    //SFESWCSD-86
+    public void sendOneTimeDonorThankYouEmail(List<Opportunity> newRecords) {
+        Map<Id, Id> targets = new Map<Id, Id>();
+
+        for (Opportunity opportunity : newRecords) {
+            if (opportunity.Donation_Type__c != 'One-time Donation') {
+                continue;
+            }
+
+            Id contactId = opportunity.npsp__Primary_Contact__c != null
+                ? opportunity.npsp__Primary_Contact__c
+                : opportunity.ContactId;
+            if (contactId != null) {
+                targets.put(contactId, opportunity.Id);
+            }
+        }
+
+        if (!targets.isEmpty()) {
+            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+                Utils.ONE_TIME_DONORS_TH,
+                targets
+            );
+            System.debug('###sendOneTimeDonorThankYouEmail: ' + accepted.size()
+                + ' of ' + targets.size() + ' emails accepted');
+        }
+    }
     
     public void setOpportunityTypeWithNoRD(List<Opportunity> newRecords) {
         Set<Id> accountIds = new Set<Id>();
@@ -285,6 +312,64 @@ public class OpportunityService implements IOpportunityService {
             Map<String, String> params = Utils.replaceEmailTemplateParams(con.Account.Phone, con.Name);
             Utils.sendEmailByTemplate(Utils.emailTemplateThankYouEmail, params, opportunityId, con.Id, new List<String>{emailToSend});
         }
+    }
+
+    //SFESWCSD-85 case 3
+    public void sendPaymentConfirmationEmail(
+        List<Opportunity> newRecords,
+        Map<Id, Opportunity> oldRecords
+    ) {
+        Map<Id, Id> targets = buildPaymentConfirmationTargets(
+            newRecords,
+            oldRecords
+        );
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+            Utils.PAYMENT_CONFIRMATION,
+            targets
+        );
+        System.debug(
+            '###sendPaymentConfirmationEmail: ' + accepted.size() +
+            ' of ' + targets.size() + ' emails accepted'
+        );
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildPaymentConfirmationTargets(
+        List<Opportunity> newRecords,
+        Map<Id, Opportunity> oldRecords
+    ) {
+        Map<Id, Id> targets = new Map<Id, Id>();
+        for (Opportunity opportunity : newRecords) {
+            Opportunity oldOpportunity = oldRecords.get(opportunity.Id);
+            if (
+                oldOpportunity == null ||
+                oldOpportunity.StageName == 'Closed Won' ||
+                opportunity.StageName != 'Closed Won'
+            ) {
+                continue;
+            }
+
+            Boolean isFirstRecurringInstallment =
+                opportunity.npe03__Recurring_Donation__c != null &&
+                opportunity.npsp__Recurring_Donation_Installment_Number__c == 1;
+            Boolean isNonRecurring =
+                opportunity.npe03__Recurring_Donation__c == null;
+            if (!isNonRecurring && !isFirstRecurringInstallment) {
+                continue;
+            }
+
+            Id contactId = opportunity.npsp__Primary_Contact__c != null
+                ? opportunity.npsp__Primary_Contact__c
+                : opportunity.ContactId;
+            if (contactId != null) {
+                targets.put(contactId, opportunity.Id);
+            }
+        }
+        return targets;
     }
     
 	//SELECT Id, Name FROM EmailTemplate ORDER BY CreatedDate DESC

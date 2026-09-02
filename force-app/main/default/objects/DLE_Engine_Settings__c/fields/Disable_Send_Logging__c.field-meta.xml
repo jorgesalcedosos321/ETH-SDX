@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Disable_Send_Logging__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>When checked, DLE_EmailDispatchService stops writing DLE_Email_Log__c rows. Email sending is unaffected. Left unchecked (the default, including when no setting record exists) logging is on.</description>
+    <inlineHelpText>Check to stop writing DLE Email Log rows. Does not affect email sending.</inlineHelpText>
+    <label>Disable Send Logging</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

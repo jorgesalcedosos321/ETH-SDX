@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Run_At__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Absolute time this send should go out. The scheduler claims the row once Run_At__c is in the past; actual send may lag up to the run interval (hourly).</description>
+    <label>Run At</label>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>

@@ -17,6 +17,10 @@ public interface IRecurringDonationService {
     npe03__Recurring_Donation__c createSponsorship(DonationRequest request, Id contactId); //SFESWCSD-92
 	npe03__Recurring_Donation__c create(DonationRequest request, Id opportunityId, Id contact);  //SFESWCSD-92
     void cancelDonation(Set<Id> rdIds); //SFESWCSD-92
-    void closeOldRDs(List<npe03__Recurring_Donation__c> newRecords);    
+    void closeOldRDs(List<npe03__Recurring_Donation__c> newRecords);
+    //SFESWCSD-85 case 1
+    void sendSponsorshipWelcomeEmail(List<npe03__Recurring_Donation__c> newRecords);
+    //SFESWCSD-85 case 11
+    void sendSponsorshipCancellationEmail(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords);
     void closeOpportunitiesFromClosedRDs(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords);  
 }

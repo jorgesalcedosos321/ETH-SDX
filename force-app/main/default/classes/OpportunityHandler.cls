@@ -23,10 +23,12 @@ public class OpportunityHandler {
    		//opp.setOpportunityTypeByRDRT(newRecords);
         //opp.setOpportunityTypeWithNoRD(newRecords);     
         //opp.checkOpportunitiesWithRDToNotify(newRecords,oldRecords);
-        opp.checkOpportunitiesWithNoRDToNotify(newRecords,oldRecords);
+        opp.checkOpportunitiesWithNoRDToNotify(newRecords,oldRecords);//SFESWCSD-86
     }
     
     public void afterUpdate(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords) {    
+        //SFESWCSD-85 case 3
+        opp.sendPaymentConfirmationEmail(newRecords, oldRecords);
         //opp.checkOpportunitiesWithRDToNotify(newRecords,oldRecords);
         opp.checkOpportunitiesWithNoRDToNotify(newRecords,oldRecords);
         opp.sendEmailNotificationForInstallments(newRecords,oldRecords); //SFESWCSD-40       

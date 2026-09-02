@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Cancel__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Tick and save to cancel this send while it is still Pending; DLE_ScheduledSendTrigger moves the row to Cancelled. Un-tick a Cancelled row to reinstate it (back to Pending) - if Run_At__c is now in the past the same save must also set a future Run_At__c. Toggling it on any other status is rejected.</description>
+    <inlineHelpText>Tick to cancel a still-Pending send; un-tick a Cancelled send to reinstate it.</inlineHelpText>
+    <label>Cancel</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

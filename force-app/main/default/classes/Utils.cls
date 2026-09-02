@@ -11,7 +11,30 @@ public class Utils {
     public static String[] userToNotifyJSONTransaction = new String[] { 'jorge.salcedo@sos-kd.org' };
         
 	public static List<String> usersToNotifyWSErrors = new List<String> { 'jorge.salcedo@sos-kd.org','nikola.andonovski@sos-kd.org' };
-            
+           
+    
+    //SFESWCSD-91 SFESWCSD-86 SFESWCSD-85
+    public static final String ANNIVERSARY_EMAIL_1 = 'ANNIVERSARY_EMAIL_1';
+    public static final String BIRTHDAY_EMAIL = 'BIRTHDAY_EMAIL';
+    public static final String CANCELLATION_PROCESS = 'CANCELLATION_PROCESS';
+    public static final String END_OF_YEAR_REPORT_P = 'END_OF_YEAR_REPORT_P';
+    public static final String LOYALTY_CALL_AFTER_6 = 'LOYALTY_CALL_AFTER_6';
+    public static final String MID_YEAR_REPORT_PDF = 'MID_YEAR_REPORT_PDF';
+    public static final String ONE_TIME_DONORS_LE = 'ONE_TIME_DONORS_LE';
+    public static final String ONE_TIME_DONORS_TH = 'ONE_TIME_DONORS_TH';
+    public static final String PAYMENT_CONFIRMATION = 'PAYMENT_CONFIRMATION';
+    public static final String REMINDER_1 = 'REMINDER_1';
+    public static final String REMINDER_2 = 'REMINDER_2';
+    public static final String REMINDER_3 = 'REMINDER_3';
+    public static final String THANK_YOU_EMAIL_AFTER_12 = 'THANK_YOU_EMAIL_AFTER_12';
+    public static final String THANK_YOU_EMAIL_AFTER_2 = 'THANK_YOU_EMAIL_AFTER_2';
+    public static final String THANK_YOU_EMAIL_AFTER_3 = 'THANK_YOU_EMAIL_AFTER_3';
+    public static final String THANK_YOU_EMAIL_AFTER_4 = 'THANK_YOU_EMAIL_AFTER_4';
+    public static final String THANK_YOU_EMAIL_AFTER_6 = 'THANK_YOU_EMAIL_AFTER_6';
+    public static final String WELCOME_EMAIL_COMMUN = 'WELCOME_EMAIL_COMMUN';
+    public static final String WELCOME_THE_NEW_DONO = 'WELCOME_THE_NEW_DONO';
+    
+    
     public static String lastDayOfMonth() {
         Date tomorrowDate = Date.today().addDays(1);
         if (tomorrowDate.day() == 1) {

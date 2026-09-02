@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>DLE_Email_Log_Compact</fullName>
+    <fields>Status__c</fields>
+    <fields>Event_Key__c</fields>
+    <fields>Template_DeveloperName__c</fields>
+    <fields>Recipient_Type__c</fields>
+    <fields>Recipient_Id__c</fields>
+    <label>DLE Email Log Compact</label>
+</CompactLayout>

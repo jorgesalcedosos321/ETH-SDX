@@ -74,4 +74,100 @@ public class RecurringDonationTest {
         System.assertEquals('Individual Committed', opp.Type, 'Opportunity Type should be set as "Individual Committed"');
     }
 
+    //SFESWCSD-85 case 1
+    @isTest
+    static void buildsWelcomeEmailTargetsForNewSponsorships() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c recurringDonation =
+            createRecurringDonation(con.Id, null);
+
+        recurringDonation.Donation_Type__c = ApiConstants.DONATION_SPONSORSHIP;
+        npe03__Recurring_Donation__c nonSponsorship =
+            new npe03__Recurring_Donation__c(
+                Id = recurringDonation.Id,
+                npe03__Contact__c = con.Id,
+                Donation_Type__c = 'Recurring Donation'
+            );
+        npe03__Recurring_Donation__c sponsorshipWithoutContact =
+            new npe03__Recurring_Donation__c(
+                Id = recurringDonation.Id,
+                Donation_Type__c = ApiConstants.DONATION_SPONSORSHIP
+            );
+
+        Map<Id, Id> targets =
+            RecurringDonationService.buildSponsorshipWelcomeTargets(
+                new List<npe03__Recurring_Donation__c>{
+                    recurringDonation,
+                    nonSponsorship,
+                    sponsorshipWithoutContact
+                }
+            );
+
+        System.assertEquals(1, targets.size());
+        System.assertEquals(recurringDonation.Id, targets.get(con.Id));
+    }
+
+    @isTest
+    static void doesNotDispatchWelcomeEmailForNonSponsorships() {
+        RecurringDonationService service = new RecurringDonationService();
+
+        Test.startTest();
+        service.sendSponsorshipWelcomeEmail(
+            new List<npe03__Recurring_Donation__c>{
+                new npe03__Recurring_Donation__c(
+                    Donation_Type__c = 'Recurring Donation'
+                )
+            }
+        );
+        Test.stopTest();
+    }
+
+    //SFESWCSD-85 case 11
+    @isTest
+    static void buildsCancellationTargetForSponsorshipWithFuturePledge() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c recurringDonation =
+            createRecurringDonation(con.Id, null);
+        insert new Opportunity(
+            Name = 'Future sponsorship installment',
+            AccountId = acc.Id,
+            ContactId = con.Id,
+            npsp__Primary_Contact__c = con.Id,
+            npe03__Recurring_Donation__c = recurringDonation.Id,
+            StageName = 'Pledged',
+            CloseDate = Date.today().addMonths(1)
+        );
+
+        npe03__Recurring_Donation__c oldRecurringDonation =
+            new npe03__Recurring_Donation__c(
+                Id = recurringDonation.Id,
+                npsp__Status__c = 'Active'
+            );
+        recurringDonation.Donation_Type__c = ApiConstants.DONATION_SPONSORSHIP;
+        recurringDonation.npsp__Status__c = 'Closed';
+        recurringDonation.npsp__ClosedReason__c = 'Other';
+
+        Map<Id, Id> targets =
+            RecurringDonationService.buildSponsorshipCancellationTargets(
+                new List<npe03__Recurring_Donation__c>{ recurringDonation },
+                new Map<Id, npe03__Recurring_Donation__c>{
+                    recurringDonation.Id => oldRecurringDonation
+                }
+            );
+
+        System.assertEquals(1, targets.size());
+        System.assertEquals(recurringDonation.Id, targets.get(con.Id));
+
+        recurringDonation.npsp__ClosedReason__c = null;
+        targets = RecurringDonationService.buildSponsorshipCancellationTargets(
+            new List<npe03__Recurring_Donation__c>{ recurringDonation },
+            new Map<Id, npe03__Recurring_Donation__c>{
+                recurringDonation.Id => oldRecurringDonation
+            }
+        );
+        System.assertEquals(0, targets.size());
+    }
+
 }

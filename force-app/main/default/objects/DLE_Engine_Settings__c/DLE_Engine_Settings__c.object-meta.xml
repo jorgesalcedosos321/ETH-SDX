@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customSettingsType>Hierarchy</customSettingsType>
+    <description>Runtime switches for the Donor Lifecycle Engine. Hierarchy custom setting: the org-default value applies unless overridden for a profile or user.</description>
+    <enableFeeds>false</enableFeeds>
+    <label>DLE Engine Settings</label>
+    <visibility>Public</visibility>
+</CustomObject>

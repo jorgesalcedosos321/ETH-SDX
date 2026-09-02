@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Accepted_Count__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Number of recipient WhoIds DLE_EmailDispatchService.sendEmail accepted for delivery when the processor ran. Status is derived from this vs Requested Count.</description>
+    <externalId>false</externalId>
+    <label>Accepted Count</label>
+    <precision>8</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

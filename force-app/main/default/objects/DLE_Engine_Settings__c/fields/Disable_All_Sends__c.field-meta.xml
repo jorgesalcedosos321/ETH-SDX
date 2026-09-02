@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Disable_All_Sends__c</fullName>
+    <defaultValue>false</defaultValue>
+    <deprecated>false</deprecated>
+    <description>Global kill switch. When checked, DLE_EmailDispatchService.sendEmail returns immediately without resolving config, sending any email, or writing DLE_Email_Log__c rows. A scheduled send that fires while this is checked is recorded with accepted 0 (Failed). Left unchecked (the default, including when no setting record exists) the engine sends normally.</description>
+    <inlineHelpText>Check to stop the engine sending any Donor Lifecycle email. Emergency use only.</inlineHelpText>
+    <label>Disable All Sends</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

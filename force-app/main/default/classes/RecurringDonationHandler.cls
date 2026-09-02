@@ -16,8 +16,15 @@ public class RecurringDonationHandler {
     public void beforeInsert(List<npe03__Recurring_Donation__c> newRecords) {
    		rds.closeOldRDs(newRecords);
     }
+
+    //SFESWCSD-85 case 1
+    public void afterInsert(List<npe03__Recurring_Donation__c> newRecords) {
+        rds.sendSponsorshipWelcomeEmail(newRecords);
+    }
     
     public void afterUpdate(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
+        //SFESWCSD-85 case 11
+        rds.sendSponsorshipCancellationEmail(newRecords, oldRecords);
         rds.closeOpportunitiesFromClosedRDs(newRecords, oldRecords);
     }
 }

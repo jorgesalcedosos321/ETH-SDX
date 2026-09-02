@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Locked_At__c</fullName>
+    <deprecated>false</deprecated>
+    <description>Stamped when the scheduler moves the row Pending -&gt; Processing. A row left Processing with Locked_At__c more than 2 hours old is reaped to Failed on a later run (the processor never completed).</description>
+    <label>Locked At</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>

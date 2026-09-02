@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>DLE_Scheduled_Send_Compact</fullName>
+    <fields>Status__c</fields>
+    <fields>Event_Key__c</fields>
+    <fields>Run_At__c</fields>
+    <fields>Requested_Count__c</fields>
+    <fields>Accepted_Count__c</fields>
+    <label>DLE Scheduled Send Compact</label>
+</CompactLayout>

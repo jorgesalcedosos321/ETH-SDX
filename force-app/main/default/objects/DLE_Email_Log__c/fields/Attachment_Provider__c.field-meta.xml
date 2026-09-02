@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Attachment_Provider__c</fullName>
+    <deprecated>false</deprecated>
+    <description>DLE_Email_Dispatch_Config__mdt.Attachment_Provider_Class__c for this send - the Apex class the engine asked for per-recipient attachments. Blank when the event has no attachment provider. Pairs with an Error prefixed &quot;attachment:&quot; to show which provider failed.</description>
+    <externalId>false</externalId>
+    <label>Attachment Provider</label>
+    <length>255</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

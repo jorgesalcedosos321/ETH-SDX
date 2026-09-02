@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>DLE_Failed_Or_Partial</fullName>
+    <booleanFilter>1 OR 2</booleanFilter>
+    <columns>NAME</columns>
+    <columns>Run_At__c</columns>
+    <columns>Event_Key__c</columns>
+    <columns>Status__c</columns>
+    <columns>Requested_Count__c</columns>
+    <columns>Accepted_Count__c</columns>
+    <columns>Last_Run_At__c</columns>
+    <columns>Error__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Status__c</field>
+        <operation>equals</operation>
+        <value>Failed</value>
+    </filters>
+    <filters>
+        <field>Status__c</field>
+        <operation>equals</operation>
+        <value>Partial</value>
+    </filters>
+    <label>Failed or Partial Scheduled Emails</label>
+</ListView>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Recipients_JSON__c</fullName>
+    <deprecated>false</deprecated>
+    <description>JSON.serialize of the Map&lt;Id,Id&gt; of recipient WhoId -&gt; related WhatId (WhatId serialized as null when omitted). The processor deserializes this and passes it straight to DLE_EmailDispatchService.sendEmail. DLE_ScheduledEmailService rejects a payload over ~120,000 characters.</description>
+    <label>Recipients JSON</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

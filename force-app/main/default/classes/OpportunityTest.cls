@@ -1,6 +1,81 @@
 @isTest
 public class OpportunityTest {
 
+    //SFESWCSD-85 case 3
+    @isTest
+    static void buildsPaymentConfirmationTargetsForEligibleOpportunities() {
+        Id nonRecurringOpportunityId = Id.valueOf('006000000000001');
+        Id firstInstallmentOpportunityId = Id.valueOf('006000000000002');
+        Id laterInstallmentOpportunityId = Id.valueOf('006000000000003');
+        Id unchangedOpportunityId = Id.valueOf('006000000000004');
+        Id nonRecurringContactId = Id.valueOf('003000000000001');
+        Id recurringContactId = Id.valueOf('003000000000002');
+        Id recurringDonationId = Id.valueOf(
+            npe03__Recurring_Donation__c.SObjectType.getDescribe().getKeyPrefix() +
+            '000000000001'
+        );
+
+        List<Opportunity> newRecords = new List<Opportunity>{
+            new Opportunity(
+                Id = nonRecurringOpportunityId,
+                StageName = 'Closed Won',
+                ContactId = nonRecurringContactId
+            ),
+            new Opportunity(
+                Id = firstInstallmentOpportunityId,
+                StageName = 'Closed Won',
+                npe03__Recurring_Donation__c = recurringDonationId,
+                npsp__Recurring_Donation_Installment_Number__c = 1,
+                npsp__Primary_Contact__c = recurringContactId
+            ),
+            new Opportunity(
+                Id = laterInstallmentOpportunityId,
+                StageName = 'Closed Won',
+                npe03__Recurring_Donation__c = recurringDonationId,
+                npsp__Recurring_Donation_Installment_Number__c = 2,
+                npsp__Primary_Contact__c = recurringContactId
+            ),
+            new Opportunity(
+                Id = unchangedOpportunityId,
+                StageName = 'Closed Won',
+                ContactId = nonRecurringContactId
+            )
+        };
+        Map<Id, Opportunity> oldRecords = new Map<Id, Opportunity>{
+            nonRecurringOpportunityId => new Opportunity(
+                Id = nonRecurringOpportunityId,
+                StageName = 'Pledged'
+            ),
+            firstInstallmentOpportunityId => new Opportunity(
+                Id = firstInstallmentOpportunityId,
+                StageName = 'Pledged'
+            ),
+            laterInstallmentOpportunityId => new Opportunity(
+                Id = laterInstallmentOpportunityId,
+                StageName = 'Pledged'
+            ),
+            unchangedOpportunityId => new Opportunity(
+                Id = unchangedOpportunityId,
+                StageName = 'Closed Won'
+            )
+        };
+
+        Map<Id, Id> targets = OpportunityService.buildPaymentConfirmationTargets(
+            newRecords,
+            oldRecords
+        );
+
+        System.assertEquals(2, targets.size());
+        System.assertEquals(
+            nonRecurringOpportunityId,
+            targets.get(nonRecurringContactId)
+        );
+        System.assertEquals(
+            firstInstallmentOpportunityId,
+            targets.get(recurringContactId)
+        );
+    }
+
     // Helper method to create test data
     private static Opportunity createOpportunity(Id accountId, Id contactId, String stageName, String type, Id recurringDonationId) {
         Opportunity opp = new Opportunity(

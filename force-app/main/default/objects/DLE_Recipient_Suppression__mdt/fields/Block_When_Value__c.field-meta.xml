@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Block_When_Value__c</fullName>
+    <defaultValue>&quot;true&quot;</defaultValue>
+    <deprecated>false</deprecated>
+    <description>The recipient is blocked when the referenced field, rendered as text, equals this value (case-insensitive). Use &quot;true&quot; for a Checkbox field; a picklist API value or plain text otherwise.</description>
+    <externalId>false</externalId>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <inlineHelpText>Value that blocks the recipient, matched case-insensitively. &quot;true&quot; for a checkbox field.</inlineHelpText>
+    <label>Block When Value</label>
+    <length>255</length>
+    <required>true</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

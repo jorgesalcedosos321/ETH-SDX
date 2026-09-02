@@ -360,6 +360,123 @@ public class RecurringDonationService implements IRecurringDonationService {
             UPDATE rdsFromContacts;
         }    
     }
+
+    //SFESWCSD-85 case 1
+    public void sendSponsorshipWelcomeEmail(
+        List<npe03__Recurring_Donation__c> newRecords
+    ) {
+        Map<Id, Id> targets = buildSponsorshipWelcomeTargets(newRecords);
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+            Utils.WELCOME_EMAIL_COMMUN,
+            targets
+        );
+        System.debug(
+            '###sendSponsorshipWelcomeEmail: ' + accepted.size() +
+            ' of ' + targets.size() + ' emails accepted'
+        );
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildSponsorshipWelcomeTargets(
+        List<npe03__Recurring_Donation__c> newRecords
+    ) {
+        Map<Id, Id> targets = new Map<Id, Id>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            if (
+                recurringDonation.Donation_Type__c == ApiConstants.DONATION_SPONSORSHIP &&
+                recurringDonation.npe03__Contact__c != null
+            ) {
+                targets.put(
+                    recurringDonation.npe03__Contact__c,
+                    recurringDonation.Id
+                );
+            }
+        }
+        return targets;
+    }
+
+    //SFESWCSD-85 case 11
+    public void sendSponsorshipCancellationEmail(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
+    ) {
+        Map<Id, Id> targets = buildSponsorshipCancellationTargets(
+            newRecords,
+            oldRecords
+        );
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+            Utils.CANCELLATION_PROCESS,
+            targets
+        );
+        System.debug(
+            '###sendSponsorshipCancellationEmail: ' + accepted.size() +
+            ' of ' + targets.size() + ' emails accepted'
+        );
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildSponsorshipCancellationTargets(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
+    ) {
+        Map<Id, npe03__Recurring_Donation__c> candidatesById =
+            new Map<Id, npe03__Recurring_Donation__c>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            npe03__Recurring_Donation__c oldRecurringDonation =
+                oldRecords.get(recurringDonation.Id);
+            Boolean changedToCancellationStatus =
+                oldRecurringDonation != null &&
+                oldRecurringDonation.npsp__Status__c != recurringDonation.npsp__Status__c &&
+                (
+                    recurringDonation.npsp__Status__c == 'Closed' ||
+                    recurringDonation.npsp__Status__c == 'Lapsed'
+                );
+            if (
+                changedToCancellationStatus &&
+                recurringDonation.Donation_Type__c == ApiConstants.DONATION_SPONSORSHIP &&
+                String.isNotBlank(recurringDonation.npsp__ClosedReason__c) &&
+                recurringDonation.npe03__Contact__c != null
+            ) {
+                candidatesById.put(recurringDonation.Id, recurringDonation);
+            }
+        }
+        if (candidatesById.isEmpty()) {
+            return new Map<Id, Id>();
+        }
+
+        Set<Id> recurringDonationIdsWithFuturePledges = new Set<Id>();
+        Set<Id> candidateIds = candidatesById.keySet();
+        for (Opportunity opportunity : [
+            SELECT npe03__Recurring_Donation__c
+            FROM Opportunity
+            WHERE npe03__Recurring_Donation__c IN :candidateIds
+            AND StageName = 'Pledged'
+            AND CloseDate > :Date.today()
+        ]) {
+            recurringDonationIdsWithFuturePledges.add(
+                opportunity.npe03__Recurring_Donation__c
+            );
+        }
+
+        Map<Id, Id> targets = new Map<Id, Id>();
+        for (Id recurringDonationId : recurringDonationIdsWithFuturePledges) {
+            npe03__Recurring_Donation__c recurringDonation =
+                candidatesById.get(recurringDonationId);
+            targets.put(
+                recurringDonation.npe03__Contact__c,
+                recurringDonation.Id
+            );
+        }
+        return targets;
+    }
     
     public void closeOpportunitiesFromClosedRDs(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
 		Set<Id> rdIds = new Set<Id>();
