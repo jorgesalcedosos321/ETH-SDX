@@ -18,5 +18,9 @@
         <members>RecurringDonationTrigger</members>
         <name>ApexTrigger</name>
     </types>
+    <types>
+        <members>Arifpay_Config__mdt.Merchant_API_Key__c</members>
+        <name>CustomField</name>
+    </types>
     <version>67.0</version>
 </Package>

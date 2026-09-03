@@ -4,7 +4,7 @@ public class ArifpayService {
     
     static {
         config = [
-            SELECT Bearer_Token__c, Endpoint__c
+            SELECT Bearer_Token__c, Endpoint__c, Merchant_API_Key__c
             FROM Arifpay_Config__mdt
             WHERE Active__c = true
             LIMIT 1
@@ -38,6 +38,10 @@ public class ArifpayService {
     
     public static String getEndpoint(){
         return config.Endpoint__c;
+    }
+
+    public static String getMerchantApiKey(){
+        return config.Merchant_API_Key__c;
     }
     
     public static String getValidToken(){
