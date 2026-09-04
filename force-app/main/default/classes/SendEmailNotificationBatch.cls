@@ -9,7 +9,10 @@
 //System.schedule('REMINDER_2 - Daily', '0 0 0 * * ?', new SendEmailNotificationBatch(Utils.REMINDER_2));
 //SFESWCSD-85 case 10 - Run once to check daily at midnight:
 //System.schedule('REMINDER_3 - Daily', '0 0 0 * * ?', new SendEmailNotificationBatch(Utils.REMINDER_3));
+//Run once to check daily for one-time donations created one month ago:
+//System.schedule('ONE_TIME_DONORS_LE - Daily', '0 0 0 * * ?', new SendEmailNotificationBatch(Utils.ONE_TIME_DONORS_LE));
 global class SendEmailNotificationBatch implements Database.Batchable<sObject>, Schedulable {
+    global Datetime testStartDate = NULL;
     global SendEmailNotificationBatch(String templateKey) {
         this.templateKey = templateKey;
     }
@@ -37,7 +40,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             ]);
         //SFESWCSD-85 case 5
         } else if (templateKey == Utils.ANNIVERSARY_EMAIL_1) {
-            Datetime currentYearStart = Datetime.newInstance(
+            Datetime currentYearStart = testStartDate != null ? testStartDate.addDays(1) : Datetime.newInstance(
                 Date.newInstance(today.year(), 1, 1),
                 Time.newInstance(0, 0, 0, 0)
             );
@@ -65,10 +68,15 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             ]);
         } else if (templateKey == Utils.LOYALTY_CALL_AFTER_6) {
             return Database.getQueryLocator([
-                SELECT Id, FirstName, Email
-                FROM Contact
-                WHERE Id IN (SELECT ContactId FROM Opportunity WHERE StageName = 'Closed Lost')
-                AND Email != null
+                SELECT Id, npe03__Contact__c
+                FROM npe03__Recurring_Donation__c
+                WHERE npe03__Contact__c != null
+                AND npe03__Contact__r.Email != null
+                AND Id IN (
+                    SELECT npe03__Recurring_Donation__c
+                    FROM Opportunity
+                    WHERE StageName = 'Closed Won'
+                )
             ]);
         //SFESWCSD-85 case 6 ////System.schedule('MID_YEAR_REPORT_PDF - June 1', '0 0 0 1 6 ?', new SendEmailNotificationBatch(Utils.MID_YEAR_REPORT_PDF));
         } else if (templateKey == Utils.MID_YEAR_REPORT_PDF) {
@@ -83,35 +91,23 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
                 )
                 AND Email != null
             ]);
-        } else if (templateKey == Utils.ONE_TIME_DONORS_TH) {
-            Date donationDate = today.addMonths(-1);
-            Datetime donationDateStart = Datetime.newInstance(
-                donationDate,
-                Time.newInstance(0, 0, 0, 0)
-            );
-            Date donationEndDate = today.addDays(1).day() == 1
-                ? donationDate.addMonths(1).toStartOfMonth()
-                : donationDate.addDays(1);
-            Datetime donationDateEnd = Datetime.newInstance(
-                donationEndDate,
-                Time.newInstance(0, 0, 0, 0)
-            );
+        } else if (templateKey == Utils.ONE_TIME_DONORS_LE) {
+            List<Datetime> anniversaryWindow = oneMonthAnniversaryWindow(today);
+            Datetime donationDateStart = anniversaryWindow[0];
+            Datetime donationDateEnd = anniversaryWindow[1];
+
+            if (testStartDate != NULL) {
+                donationDateStart = testStartDate.addMonths(-1);
+                donationDateEnd = testStartDate.addDays(1);
+            }
 
             return Database.getQueryLocator([
                 SELECT Id, ContactId, npsp__Primary_Contact__c
                 FROM Opportunity
                 WHERE Donation_Type__c = 'One-time Donation'
-                AND StageName = 'Closed Won'
                 AND CreatedDate >= :donationDateStart
                 AND CreatedDate < :donationDateEnd
                 AND (ContactId != null OR npsp__Primary_Contact__c != null)
-            ]);
-        } else if (templateKey == Utils.ONE_TIME_DONORS_LE) {
-            return Database.getQueryLocator([
-                SELECT Id, FirstName, Email
-                FROM Contact
-                WHERE Id IN (SELECT ContactId FROM Opportunity WHERE StageName = 'Closed Lost')
-                AND Email != null
             ]);
         //SFESWCSD-85 case 8
         //SFESWCSD-85 case 9
@@ -138,16 +134,42 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
     }
 
     global void execute(Database.BatchableContext context, List<sObject> scope) {
-        Map<Id, Id> targets = buildTargets(templateKey, scope);
+        System.debug('###Template Key: ' + templateKey);
+        System.debug('###scope: ' + scope);
+        System.debug('###testStartDate: ' + testStartDate);
 
+        Map<Id, Id> targets = buildTargets(templateKey, scope, testStartDate);
+        System.debug('###targets: ' + targets);
+
+        List<Task> tsk = new List<Task>();
         if (!targets.isEmpty()) {
-            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(templateKey, targets);
-            System.debug(accepted.size() + ' of ' + targets.size() + ' emails accepted');
+            if (templateKey == Utils.LOYALTY_CALL_AFTER_6) {
+                for (Id contactId : targets.keySet()) {
+                    Id opportunityId = targets.get(contactId);
+                    Task t1 = Utils.createNotification('Loyalty call after 6 payments', 'Call', contactId, opportunityId, Date.today(), Date.today(), UserInfo.getUserId(), NULL, NULL);
+                    tsk.add(t1);
+                }
+                System.debug(tsk.size() + ' task created');
+            } else {
+                Set<Id> accepted = DLE_EmailDispatchService.sendEmail(templateKey, targets);
+                System.debug(accepted.size() + ' of ' + targets.size() + ' emails accepted');
+            }
+        }
+
+        if (!tsk.isEmpty()) {
+            Database.SaveResult[] srs = Database.insert(tsk, false);
+            for (Database.SaveResult sr : srs) {
+                if (!sr.isSuccess()) {
+                    for (Database.Error err : sr.getErrors()) {
+                        System.debug('###SendEmailNotificationBatch Error creating task: ' + err.getMessage());
+                    }
+                }
+            }
         }
     }
 
     @TestVisible
-    private static Map<Id, Id> buildTargets(String selectedTemplateKey, List<sObject> scope) {
+    private static Map<Id, Id> buildTargets(String selectedTemplateKey, List<sObject> scope, Datetime testStartDate) {
         Map<Id, Id> targets = new Map<Id, Id>();
 
         if (
@@ -155,10 +177,12 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             selectedTemplateKey == Utils.REMINDER_2 ||
             selectedTemplateKey == Utils.REMINDER_3
         ) {
-            targets.putAll(buildReminderTargets(selectedTemplateKey, scope));
+            targets.putAll(buildReminderTargets(selectedTemplateKey, scope, testStartDate != null ? testStartDate.date() : Date.today()));
+        } else if (selectedTemplateKey == Utils.LOYALTY_CALL_AFTER_6) {
+            targets.putAll(buildLoyaltyTargets(scope));
         } else if (selectedTemplateKey == Utils.ANNIVERSARY_EMAIL_1) {
             targets.putAll(buildSponsorshipAnniversaryTargets(scope));
-        } else if (selectedTemplateKey == Utils.ONE_TIME_DONORS_TH) {
+        } else if (selectedTemplateKey == Utils.ONE_TIME_DONORS_LE) {
             for (sObject record : scope) {
                 Opportunity opportunity = (Opportunity) record;
                 Id contactId = opportunity.npsp__Primary_Contact__c != null
@@ -179,43 +203,71 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
         return targets;
     }
 
-    //SFESWCSD-85 case 8
-    //SFESWCSD-85 case 9
-    //SFESWCSD-85 case 10
     @TestVisible
-    private static Map<Id, Id> buildReminderTargets(
-        String selectedTemplateKey,
-        List<sObject> scope
-    ) {
-        Integer requiredMisses = selectedTemplateKey == Utils.REMINDER_1
-            ? 1
-            : selectedTemplateKey == Utils.REMINDER_2 ? 2 : 3;
+    private static List<Datetime> oneMonthAnniversaryWindow(Date runDate) {
+        Date previousMonthEnd = runDate.toStartOfMonth().addDays(-1);
+        Date currentMonthEnd = runDate.addMonths(1).toStartOfMonth().addDays(-1);
+        Date startDate;
+        Date endDate;
+
+        if (
+            runDate == currentMonthEnd &&
+            runDate.day() <= previousMonthEnd.day()
+        ) {
+            startDate = Date.newInstance(
+                previousMonthEnd.year(),
+                previousMonthEnd.month(),
+                runDate.day()
+            );
+            endDate = previousMonthEnd.addDays(1);
+        } else if (runDate.day() <= previousMonthEnd.day()) {
+            startDate = Date.newInstance(
+                previousMonthEnd.year(),
+                previousMonthEnd.month(),
+                runDate.day()
+            );
+            endDate = startDate.addDays(1);
+        } else {
+            // The prior month has no matching day. Its final dates were already
+            // handled on the shorter following month's final day.
+            startDate = runDate;
+            endDate = runDate;
+        }
+
+        return new List<Datetime>{
+            Datetime.newInstance(startDate, Time.newInstance(0, 0, 0, 0)),
+            Datetime.newInstance(endDate, Time.newInstance(0, 0, 0, 0))
+        };
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildLoyaltyTargets(List<sObject> scope) {
         Map<Id, Id> contactsByRecurringDonation = new Map<Id, Id>();
         for (sObject record : scope) {
             npe03__Recurring_Donation__c recurringDonation =
                 (npe03__Recurring_Donation__c) record;
-            contactsByRecurringDonation.put(
-                recurringDonation.Id,
-                recurringDonation.npe03__Contact__c
-            );
+            if (recurringDonation.npe03__Contact__c != null) {
+                contactsByRecurringDonation.put(
+                    recurringDonation.Id,
+                    recurringDonation.npe03__Contact__c
+                );
+            }
         }
         if (contactsByRecurringDonation.isEmpty()) {
             return new Map<Id, Id>();
         }
 
-        Set<Id> recurringDonationIds = contactsByRecurringDonation.keySet();
         Map<Id, List<Opportunity>> opportunitiesByRecurringDonation =
             new Map<Id, List<Opportunity>>();
+        Set<Id> recurringDonationIds = contactsByRecurringDonation.keySet();
         for (Opportunity opportunity : [
-            SELECT Id, StageName, CloseDate,
-                npe03__Recurring_Donation__c,
+            SELECT Id, StageName, npe03__Recurring_Donation__c,
                 npsp__Recurring_Donation_Installment_Number__c
             FROM Opportunity
             WHERE npe03__Recurring_Donation__c IN :recurringDonationIds
-            AND CloseDate <= :Date.today()
+            AND StageName IN ('Closed Won', 'Closed Lost', 'Declined', 'Missed')
             ORDER BY npe03__Recurring_Donation__c,
-                npsp__Recurring_Donation_Installment_Number__c DESC,
-                CloseDate DESC
+                npsp__Recurring_Donation_Installment_Number__c ASC
         ]) {
             if (!opportunitiesByRecurringDonation.containsKey(
                 opportunity.npe03__Recurring_Donation__c
@@ -232,10 +284,106 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
 
         Map<Id, Id> targets = new Map<Id, Id>();
         for (Id recurringDonationId : opportunitiesByRecurringDonation.keySet()) {
+            Opportunity sixthPayment = getSixthConsecutivePayment(
+                opportunitiesByRecurringDonation.get(recurringDonationId)
+            );
+            if (sixthPayment != null) {
+                targets.put(
+                    contactsByRecurringDonation.get(recurringDonationId),
+                    sixthPayment.Id
+                );
+            }
+        }
+        return targets;
+    }
+
+    @TestVisible
+    private static Opportunity getSixthConsecutivePayment(
+        List<Opportunity> opportunities
+    ) {
+        if (opportunities.size() != 6) {
+            return null;
+        }
+        Decimal firstInstallment =
+            opportunities[0].npsp__Recurring_Donation_Installment_Number__c;
+        if (firstInstallment == null) {
+            return null;
+        }
+        for (Integer index = 0; index < opportunities.size(); index++) {
+            Opportunity opportunity = opportunities[index];
+            if (
+                opportunity.StageName != 'Closed Won' ||
+                opportunity.npsp__Recurring_Donation_Installment_Number__c !=
+                    firstInstallment + index
+            ) {
+                return null;
+            }
+        }
+        return opportunities[5];
+    }
+
+    //SFESWCSD-85 case 8
+    //SFESWCSD-85 case 9
+    //SFESWCSD-85 case 10
+    @TestVisible
+    private static Map<Id, Id> buildReminderTargets(
+        String selectedTemplateKey,
+        List<sObject> scope,
+        Date testStartDate
+    ) {
+        Integer requiredMisses = selectedTemplateKey == Utils.REMINDER_1
+            ? 1
+            : selectedTemplateKey == Utils.REMINDER_2 ? 2 : 3;
+        System.debug('###requiredMisses: ' + requiredMisses);
+        Map<Id, Id> contactsByRecurringDonation = new Map<Id, Id>();
+        for (sObject record : scope) {
+            npe03__Recurring_Donation__c recurringDonation =
+                (npe03__Recurring_Donation__c) record;
+            contactsByRecurringDonation.put(
+                recurringDonation.Id,
+                recurringDonation.npe03__Contact__c
+            );
+        }
+        if (contactsByRecurringDonation.isEmpty()) {
+            return new Map<Id, Id>();
+        }
+        System.debug('###contactsByRecurringDonation: ' + contactsByRecurringDonation);
+
+        Date dateToCheck = testStartDate != null ? testStartDate : Date.Today();
+        Set<Id> recurringDonationIds = contactsByRecurringDonation.keySet();
+        Map<Id, List<Opportunity>> opportunitiesByRecurringDonation =
+            new Map<Id, List<Opportunity>>();
+        for (Opportunity opportunity : [
+            SELECT Id, StageName, CloseDate,
+                npe03__Recurring_Donation__c,
+                npsp__Recurring_Donation_Installment_Number__c
+            FROM Opportunity
+            WHERE npe03__Recurring_Donation__c IN :recurringDonationIds
+            AND CloseDate <= :dateToCheck
+            ORDER BY npe03__Recurring_Donation__c,
+                npsp__Recurring_Donation_Installment_Number__c DESC,
+                CloseDate DESC
+        ]) {
+            if (!opportunitiesByRecurringDonation.containsKey(
+                opportunity.npe03__Recurring_Donation__c
+            )) {
+                opportunitiesByRecurringDonation.put(
+                    opportunity.npe03__Recurring_Donation__c,
+                    new List<Opportunity>()
+                );
+            }
+            opportunitiesByRecurringDonation.get(
+                opportunity.npe03__Recurring_Donation__c
+            ).add(opportunity);
+        }
+        System.debug('###opportunitiesByRecurringDonation: ' + opportunitiesByRecurringDonation);
+
+        Map<Id, Id> targets = new Map<Id, Id>();
+        for (Id recurringDonationId : opportunitiesByRecurringDonation.keySet()) {
             Opportunity latestMissedOpportunity = getReminderOpportunity(
                 opportunitiesByRecurringDonation.get(recurringDonationId),
                 requiredMisses,
-                Date.today()
+                dateToCheck
             );
             if (latestMissedOpportunity != null) {
                 targets.put(
@@ -264,13 +412,26 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             if (!missedStages.contains(opportunity.StageName)) {
                 break;
             }
+            Date expectedMissMonth = runDate.addMonths(
+                -(consecutiveMisses + 1)
+            );
+            System.debug('###expectedMissMonth: ' + expectedMissMonth);
+            System.debug('###opportunity.CloseDate: ' + opportunity.CloseDate);
+            System.debug('###opportunity.npsp__Recurring_Donation_Installment_Number__c: ' + opportunity.npsp__Recurring_Donation_Installment_Number__c);
+            System.debug('###opportunity.npe03__Recurring_Donation__c: ' + opportunity.npe03__Recurring_Donation__c);
+            if (
+                opportunity.CloseDate.year() != expectedMissMonth.year() ||
+                opportunity.CloseDate.month() != expectedMissMonth.month()
+            ) {
+                return null;
+            }
             if (latestMissedOpportunity == null) {
                 latestMissedOpportunity = opportunity;
             }
             consecutiveMisses++;
         }
-        return consecutiveMisses == requiredMisses &&
-            latestMissedOpportunity.CloseDate.addMonths(1) == runDate
+        System.debug('###consecutiveMisses: ' + consecutiveMisses);
+        return consecutiveMisses == requiredMisses
             ? latestMissedOpportunity
             : null;
     }

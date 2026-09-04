@@ -23,6 +23,7 @@ public class OpportunityHandler {
    		//opp.setOpportunityTypeByRDRT(newRecords);
         //opp.setOpportunityTypeWithNoRD(newRecords);     
         //opp.checkOpportunitiesWithRDToNotify(newRecords,oldRecords);
+        opp.sendOneTimeDonorThankYouEmail(newRecords);//SFESWCSD-86
         opp.checkOpportunitiesWithNoRDToNotify(newRecords,oldRecords);//SFESWCSD-86
     }
     

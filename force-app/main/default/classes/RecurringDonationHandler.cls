@@ -14,7 +14,22 @@
 public class RecurringDonationHandler {
 	IRecurringDonationService rds = new RecurringDonationService();
     public void beforeInsert(List<npe03__Recurring_Donation__c> newRecords) {
+		defaultMonthlyDayOfMonth(newRecords);
    		rds.closeOldRDs(newRecords);
+    }
+
+    private void defaultMonthlyDayOfMonth(
+        List<npe03__Recurring_Donation__c> newRecords
+    ) {
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            if (
+                recurringDonation.npe03__Installment_Period__c ==
+                    ApiConstants.PERIOD_MONTHLY &&
+                String.isBlank(recurringDonation.npsp__Day_of_Month__c)
+            ) {
+                recurringDonation.npsp__Day_of_Month__c = '1';
+            }
+        }
     }
 
     //SFESWCSD-85 case 1

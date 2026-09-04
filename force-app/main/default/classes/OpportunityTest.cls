@@ -221,6 +221,47 @@ public class OpportunityTest {
     }
 
     @isTest
+    static void buildsImmediateOneTimeThankYouTargetsOnRegistration() {
+        Id primaryContactId = Id.valueOf('003000000000001');
+        Id fallbackContactId = Id.valueOf('003000000000002');
+        Opportunity primaryContactOpportunity = new Opportunity(
+            Id = Id.valueOf('006000000000001'),
+            ContactId = fallbackContactId,
+            npsp__Primary_Contact__c = primaryContactId,
+            Donation_Type__c = 'One-time Donation'
+        );
+        Opportunity fallbackContactOpportunity = new Opportunity(
+            Id = Id.valueOf('006000000000002'),
+            ContactId = fallbackContactId,
+            Donation_Type__c = 'One-time Donation'
+        );
+        Opportunity recurringDonationOpportunity = new Opportunity(
+            Id = Id.valueOf('006000000000003'),
+            ContactId = primaryContactId,
+            Donation_Type__c = 'Recurring Donation'
+        );
+
+        Map<Id, Id> targets =
+            OpportunityService.buildOneTimeDonorThankYouTargets(
+                new List<Opportunity>{
+                    primaryContactOpportunity,
+                    fallbackContactOpportunity,
+                    recurringDonationOpportunity
+                }
+            );
+
+        System.assertEquals(2, targets.size());
+        System.assertEquals(
+            primaryContactOpportunity.Id,
+            targets.get(primaryContactId)
+        );
+        System.assertEquals(
+            fallbackContactOpportunity.Id,
+            targets.get(fallbackContactId)
+        );
+    }
+
+    @isTest
     static void testCheckOpportunitiesWithRDToNotify() {
         Account acc = createAccount('Organization');
         Contact con = createContact(acc.Id);

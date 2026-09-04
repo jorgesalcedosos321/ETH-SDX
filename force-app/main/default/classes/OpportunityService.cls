@@ -223,8 +223,23 @@ public class OpportunityService implements IOpportunityService {
 
     //SFESWCSD-86
     public void sendOneTimeDonorThankYouEmail(List<Opportunity> newRecords) {
-        Map<Id, Id> targets = new Map<Id, Id>();
+        Map<Id, Id> targets = buildOneTimeDonorThankYouTargets(newRecords);
 
+        if (!targets.isEmpty()) {
+            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+                Utils.ONE_TIME_DONORS_TH,
+                targets
+            );
+            System.debug('###sendOneTimeDonorThankYouEmail: ' + accepted.size()
+                + ' of ' + targets.size() + ' emails accepted');
+        }
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildOneTimeDonorThankYouTargets(
+        List<Opportunity> newRecords
+    ) {
+        Map<Id, Id> targets = new Map<Id, Id>();
         for (Opportunity opportunity : newRecords) {
             if (opportunity.Donation_Type__c != 'One-time Donation') {
                 continue;
@@ -237,15 +252,7 @@ public class OpportunityService implements IOpportunityService {
                 targets.put(contactId, opportunity.Id);
             }
         }
-
-        if (!targets.isEmpty()) {
-            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
-                Utils.ONE_TIME_DONORS_TH,
-                targets
-            );
-            System.debug('###sendOneTimeDonorThankYouEmail: ' + accepted.size()
-                + ' of ' + targets.size() + ' emails accepted');
-        }
+        return targets;
     }
     
     public void setOpportunityTypeWithNoRD(List<Opportunity> newRecords) {
@@ -276,10 +283,10 @@ public class OpportunityService implements IOpportunityService {
         Map<Id, Id> oppConIds = new Map<Id, Id>();
 		Set<Id> contactIds = new Set<Id>();
 		for (Opportunity newRecord : newRecords) {
-			if (oldRecords == null && newRecord.npe03__Recurring_Donation__c == NULL && newRecord.StageName == 'Closed Won' && (newRecord.Type == 'Individual Committed' || newRecord.Type == 'Individual One-off')) {
+			if (oldRecords == null && newRecord.Donation_Type__c != 'One-time Donation' && newRecord.npe03__Recurring_Donation__c == NULL && newRecord.StageName == 'Closed Won' && (newRecord.Type == 'Individual Committed' || newRecord.Type == 'Individual One-off')) {
 				oppConIds.put(newRecord.Id, newRecord.ContactId);
 			}
-			if (oldRecords != null && newRecord.npe03__Recurring_Donation__c == NULL && newRecord.StageName == 'Closed Won' && oldRecords.get(newRecord.Id).StageName <> newRecord.StageName && newRecord.StageName == 'Closed Won' && (newRecord.Type == 'Individual Committed' || newRecord.Type == 'Individual One-off')) {
+			if (oldRecords != null && newRecord.Donation_Type__c != 'One-time Donation' && newRecord.npe03__Recurring_Donation__c == NULL && newRecord.StageName == 'Closed Won' && oldRecords.get(newRecord.Id).StageName <> newRecord.StageName && newRecord.StageName == 'Closed Won' && (newRecord.Type == 'Individual Committed' || newRecord.Type == 'Individual One-off')) {
 				oppConIds.put(newRecord.Id, newRecord.ContactId);
 			}
 		}
