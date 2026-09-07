@@ -40,18 +40,18 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             ]);
         //SFESWCSD-85 case 5
         } else if (templateKey == Utils.ANNIVERSARY_EMAIL_1) {
-            Datetime currentYearStart = testStartDate != null ? testStartDate.addDays(1) : Datetime.newInstance(
-                Date.newInstance(today.year(), 1, 1),
-                Time.newInstance(0, 0, 0, 0)
-            );
+            Date currentYearStart = testStartDate != null ? testStartDate.date().addDays(1) : Date.newInstance(today.year(), 1, 1);
+
+            //Changed by Marina excel 07092026
+            //npe03__Date_Established__c instead of CreatedDate because we want to send the email on the anniversary of the donation, not when it was created in Salesforce.
             return Database.getQueryLocator([
-                SELECT Id, CreatedDate, npe03__Contact__c
+                SELECT Id, npe03__Date_Established__c, npe03__Contact__c
                 FROM npe03__Recurring_Donation__c
                 WHERE Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP
                 AND npe03__Contact__c != null
-                AND CALENDAR_MONTH(CreatedDate) = :today.month()
-                AND DAY_IN_MONTH(CreatedDate) = :today.day()
-                AND CreatedDate < :currentYearStart
+                AND CALENDAR_MONTH(npe03__Date_Established__c) = :today.month()
+                AND DAY_IN_MONTH(npe03__Date_Established__c) = :today.day()
+                AND npe03__Date_Established__c < :currentYearStart
             ]);
         //SFESWCSD-85 case 7
         } else if (templateKey == Utils.END_OF_YEAR_REPORT_P) {
@@ -92,21 +92,22 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
                 AND Email != null
             ]);
         } else if (templateKey == Utils.ONE_TIME_DONORS_LE) {
-            List<Datetime> anniversaryWindow = oneMonthAnniversaryWindow(today);
-            Datetime donationDateStart = anniversaryWindow[0];
-            Datetime donationDateEnd = anniversaryWindow[1];
+            List<Date> anniversaryWindow = oneMonthAnniversaryWindow(today);
+            Date donationDateStart = anniversaryWindow[0];
+            Date donationDateEnd = anniversaryWindow[1];
 
             if (testStartDate != NULL) {
-                donationDateStart = testStartDate.addMonths(-1);
-                donationDateEnd = testStartDate.addDays(1);
+                donationDateStart = testStartDate.date().addMonths(-1);
+                donationDateEnd = testStartDate.date().addDays(1);
             }
 
             return Database.getQueryLocator([
                 SELECT Id, ContactId, npsp__Primary_Contact__c
                 FROM Opportunity
                 WHERE Donation_Type__c = 'One-time Donation'
-                AND CreatedDate >= :donationDateStart
-                AND CreatedDate < :donationDateEnd
+                AND Transaction_Date__c >= :donationDateStart
+                AND Transaction_Date__c < :donationDateEnd
+                AND StageName = 'Closed Won'
                 AND (ContactId != null OR npsp__Primary_Contact__c != null)
             ]);
         //SFESWCSD-85 case 8
@@ -120,11 +121,12 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             return Database.getQueryLocator([
                 SELECT Id, npe03__Contact__c
                 FROM npe03__Recurring_Donation__c
-                WHERE npe03__Contact__c != null
+                WHERE npe03__Contact__c != null 
+                AND Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP //Added by Marina excel 07092026
                 AND Id IN (
                     SELECT npe03__Recurring_Donation__c
                     FROM Opportunity
-                    WHERE StageName IN ('Declined', 'Missed', 'Closed Lost')
+                    WHERE StageName IN ('Declined', 'Missed') //Changed by Marina excel 07092026, 'Closed Lost'
                 )
             ]);
         }
@@ -204,7 +206,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
     }
 
     @TestVisible
-    private static List<Datetime> oneMonthAnniversaryWindow(Date runDate) {
+    private static List<Date> oneMonthAnniversaryWindow(Date runDate) {
         Date previousMonthEnd = runDate.toStartOfMonth().addDays(-1);
         Date currentMonthEnd = runDate.addMonths(1).toStartOfMonth().addDays(-1);
         Date startDate;
@@ -234,9 +236,9 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             endDate = runDate;
         }
 
-        return new List<Datetime>{
-            Datetime.newInstance(startDate, Time.newInstance(0, 0, 0, 0)),
-            Datetime.newInstance(endDate, Time.newInstance(0, 0, 0, 0))
+        return new List<Date>{
+            startDate,
+            endDate
         };
     }
 
@@ -403,8 +405,8 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
     ) {
         Set<String> missedStages = new Set<String>{
             'Declined',
-            'Missed',
-            'Closed Lost'
+            'Missed'
+            //,'Closed Lost' //Commented by Marina excel 07092026
         };
         Integer consecutiveMisses = 0;
         Opportunity latestMissedOpportunity;
@@ -452,7 +454,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
                 recurringDonation.npe03__Contact__c != null &&
                 (
                     existingCandidate == null ||
-                    recurringDonation.CreatedDate < existingCandidate.CreatedDate
+                    recurringDonation.npe03__Date_Established__c < existingCandidate.npe03__Date_Established__c
                 )
             ) {
                 candidatesByContact.put(
@@ -462,11 +464,11 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             }
         }
 
-        Map<Id, Datetime> firstSponsorshipDates = new Map<Id, Datetime>();
+        Map<Id, Date> firstSponsorshipDates = new Map<Id, Date>();
         if (!candidatesByContact.isEmpty()) {
             Set<Id> contactIds = candidatesByContact.keySet();
             for (AggregateResult result : [
-                SELECT npe03__Contact__c contactId, MIN(CreatedDate) firstDate
+                SELECT npe03__Contact__c contactId, MIN(npe03__Date_Established__c) firstDate
                 FROM npe03__Recurring_Donation__c
                 WHERE npe03__Contact__c IN :contactIds
                 AND Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP
@@ -474,7 +476,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             ]) {
                 firstSponsorshipDates.put(
                     (Id) result.get('contactId'),
-                    (Datetime) result.get('firstDate')
+                    (Date) result.get('firstDate')
                 );
             }
         }
@@ -483,7 +485,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
         for (Id contactId : candidatesByContact.keySet()) {
             npe03__Recurring_Donation__c candidate =
                 candidatesByContact.get(contactId);
-            if (candidate.CreatedDate == firstSponsorshipDates.get(contactId)) {
+            if (candidate.npe03__Date_Established__c == firstSponsorshipDates.get(contactId)) {
                 targets.put(contactId, candidate.Id);
             }
         }

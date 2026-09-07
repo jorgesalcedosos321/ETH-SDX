@@ -222,8 +222,9 @@ public class OpportunityService implements IOpportunityService {
     }*/
 
     //SFESWCSD-86
-    public void sendOneTimeDonorThankYouEmail(List<Opportunity> newRecords) {
-        Map<Id, Id> targets = buildOneTimeDonorThankYouTargets(newRecords);
+    //Changed by Marina excel 07092026
+    public void sendOneTimeDonorThankYouEmail(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords) {
+        Map<Id, Id> targets = buildOneTimeDonorThankYouTargets(newRecords, oldRecords);
 
         if (!targets.isEmpty()) {
             Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
@@ -237,19 +238,20 @@ public class OpportunityService implements IOpportunityService {
 
     @TestVisible
     private static Map<Id, Id> buildOneTimeDonorThankYouTargets(
-        List<Opportunity> newRecords
+        List<Opportunity> newRecords,
+        Map<Id, Opportunity> oldRecords
     ) {
         Map<Id, Id> targets = new Map<Id, Id>();
+        
         for (Opportunity opportunity : newRecords) {
-            if (opportunity.Donation_Type__c != 'One-time Donation') {
-                continue;
-            }
-
-            Id contactId = opportunity.npsp__Primary_Contact__c != null
-                ? opportunity.npsp__Primary_Contact__c
-                : opportunity.ContactId;
-            if (contactId != null) {
-                targets.put(contactId, opportunity.Id);
+            Boolean stageChangedToClosedWon = (oldRecords == null && opportunity.StageName == 'Closed Won') || (oldRecords.get(opportunity.Id) != null && oldRecords.get(opportunity.Id).StageName != opportunity.StageName && opportunity.StageName == 'Closed Won');
+            if (opportunity.Donation_Type__c == 'One-time Donation' && stageChangedToClosedWon) {
+                Id contactId = opportunity.npsp__Primary_Contact__c != null
+                    ? opportunity.npsp__Primary_Contact__c
+                    : opportunity.ContactId;
+                if (contactId != null) {
+                    targets.put(contactId, opportunity.Id);
+                }   
             }
         }
         return targets;

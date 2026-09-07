@@ -60,10 +60,11 @@ private class SendEmailNotificationBatchTest {
             'Closed Won'
         );
         fallbackOpportunity.npsp__Primary_Contact__c = null;
-
+        
+        Datetime testStartDate = Datetime.newInstance(Date.today().addMonths(-1), Time.newInstance(12, 0, 0, 0));
         Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(
             Utils.ONE_TIME_DONORS_LE,
-            new List<sObject>{ primaryOpportunity, fallbackOpportunity }
+            new List<sObject>{ primaryOpportunity, fallbackOpportunity }, testStartDate
         );
 
         System.assertEquals(primaryOpportunity.Id, targets.get(primaryContact.Id));
@@ -78,9 +79,11 @@ private class SendEmailNotificationBatchTest {
             scope.add(contact);
         }
 
+        Datetime testStartDate = Datetime.newInstance(Date.today().addMonths(-1), Time.newInstance(12, 0, 0, 0));
         Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(
             Utils.BIRTHDAY_EMAIL,
-            scope
+            scope,
+            testStartDate
         );
 
         System.assertEquals(1, targets.size());
@@ -105,7 +108,7 @@ private class SendEmailNotificationBatchTest {
     }
 
     @isTest
-    static void selectsOneTimeDonationsCreatedOneMonthAgoForLe() {
+    static void selectsOneTimeDonationsTransactedOneMonthAgoForLe() {
         Account account = [SELECT Id FROM Account LIMIT 1];
         Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
 
@@ -131,8 +134,9 @@ private class SendEmailNotificationBatchTest {
             Date.today().addMonths(-1),
             Time.newInstance(12, 0, 0, 0)
         );
-        Test.setCreatedDate(eligible.Id, oneMonthAgo);
-        Test.setCreatedDate(wrongDonationType.Id, oneMonthAgo);
+        eligible.Transaction_Date__c = oneMonthAgo.date();
+        wrongDonationType.Transaction_Date__c = oneMonthAgo.date();
+        update new List<Opportunity>{ eligible, wrongDonationType };
 
         Set<Id> selectedIds = queryLocatorIds(
             new SendEmailNotificationBatch(Utils.ONE_TIME_DONORS_LE).start(null)
@@ -145,26 +149,26 @@ private class SendEmailNotificationBatchTest {
 
     @isTest
     static void calculatesOneMonthAnniversaryWithoutMonthEndDuplicates() {
-        List<Datetime> februaryLastDay =
+        List<Date> februaryLastDay =
             SendEmailNotificationBatch.oneMonthAnniversaryWindow(
                 Date.newInstance(2025, 2, 28)
             );
         System.assertEquals(
-            Datetime.newInstance(2025, 1, 28, 0, 0, 0),
+            Date.newInstance(2025, 1, 28),
             februaryLastDay[0]
         );
         System.assertEquals(
-            Datetime.newInstance(2025, 2, 1, 0, 0, 0),
+            Date.newInstance(2025, 2, 1),
             februaryLastDay[1]
         );
 
-        List<Datetime> marchExtraDay =
+        List<Date> marchExtraDay =
             SendEmailNotificationBatch.oneMonthAnniversaryWindow(
                 Date.newInstance(2025, 3, 29)
             );
         System.assertEquals(marchExtraDay[0], marchExtraDay[1]);
 
-        List<Datetime> marchLastDay =
+        List<Date> marchLastDay =
             SendEmailNotificationBatch.oneMonthAnniversaryWindow(
                 Date.newInstance(2025, 3, 31)
             );
@@ -239,9 +243,12 @@ private class SendEmailNotificationBatchTest {
             }
         }
 
+        Datetime testStartDate = Datetime.newInstance(Date.today().addMonths(-1), Time.newInstance(12, 0, 0, 0));
+        
         Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(
             Utils.LOYALTY_CALL_AFTER_6,
-            candidates
+            candidates,
+            testStartDate
         );
 
         System.assertEquals(1, targets.size());
@@ -356,7 +363,7 @@ private class SendEmailNotificationBatchTest {
         Date firstMissedDate = Date.today().addMonths(-1);
         Opportunity firstMiss = new Opportunity(
             Id = Id.valueOf('006000000000011'),
-            StageName = 'Closed Lost',
+            StageName = 'Missed',
             CloseDate = firstMissedDate
         );
         Opportunity secondMiss = new Opportunity(
@@ -473,6 +480,23 @@ private class SendEmailNotificationBatchTest {
         );
     }
 
+    @isTest
+    static void excludesClosedLostFromMissedPaymentReminders() {
+        Opportunity closedLost = new Opportunity(
+            StageName = 'Closed Lost',
+            CloseDate = Date.today().addMonths(-1)
+        );
+        System.assertEquals(
+            null,
+            SendEmailNotificationBatch.getReminderOpportunity(
+                new List<Opportunity>{ closedLost },
+                1,
+                Date.today()
+            ),
+            'Closed Lost must not qualify as a missed payment'
+        );
+    }
+
     //SFESWCSD-85 case 5
     @isTest
     static void selectsOnlyTheFirstSponsorshipOnItsAnniversary() {
@@ -481,20 +505,13 @@ private class SendEmailNotificationBatchTest {
             createSponsorship(contact.Id);
         npe03__Recurring_Donation__c laterSponsorship =
             createSponsorship(contact.Id);
-        Test.setCreatedDate(
-            firstSponsorship.Id,
-            Datetime.newInstance(
-                Date.today().addYears(-2),
-                Time.newInstance(10, 0, 0, 0)
-            )
-        );
-        Test.setCreatedDate(
-            laterSponsorship.Id,
-            Datetime.newInstance(
-                Date.today().addYears(-1),
-                Time.newInstance(10, 0, 0, 0)
-            )
-        );
+
+        firstSponsorship.npe03__Date_Established__c = Date.today().addYears(-2);
+        laterSponsorship.npe03__Date_Established__c = Date.today().addYears(-1);
+        update new List<npe03__Recurring_Donation__c>{
+            firstSponsorship,
+            laterSponsorship
+        };
 
         SendEmailNotificationBatch batch = new SendEmailNotificationBatch(
             Utils.ANNIVERSARY_EMAIL_1
@@ -504,9 +521,13 @@ private class SendEmailNotificationBatchTest {
         while (records.hasNext()) {
             candidates.add(records.next());
         }
+
+        Datetime testStartDate = Datetime.newInstance(Date.today().addMonths(-1), Time.newInstance(12, 0, 0, 0));
+        
         Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(
             Utils.ANNIVERSARY_EMAIL_1,
-            candidates
+            candidates, 
+            testStartDate
         );
 
         System.assertEquals(1, targets.size());
@@ -559,6 +580,7 @@ private class SendEmailNotificationBatchTest {
             npsp__Primary_Contact__c = contactId,
             StageName = stageName,
             CloseDate = Date.today(),
+            Transaction_Date__c = Date.today(),
             Donation_Type__c = 'One-time Donation'
         );
         insert opportunity;

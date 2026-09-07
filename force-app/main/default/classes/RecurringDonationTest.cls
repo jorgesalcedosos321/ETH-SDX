@@ -59,6 +59,7 @@ public class RecurringDonationTest {
         npe03__Recurring_Donation__c rd = createRecurringDonation(con.Id, null);
         
         Opportunity opp = createOpportunity(acc.Id, con.Id, 'Prospecting', 'New', rd.Id);
+        opp.Type = 'New';
         
         List<Opportunity> oppList = new List<Opportunity>{ opp };
             Test.startTest();
@@ -70,7 +71,6 @@ public class RecurringDonationTest {
         Test.stopTest();
         
         // Assert results
-        opp = [SELECT Type FROM Opportunity WHERE Id = :opp.Id];
         System.assertEquals('Individual Committed', opp.Type, 'Opportunity Type should be set as "Individual Committed"');
     }
 
@@ -195,11 +195,45 @@ public class RecurringDonationTest {
                 oldRecords
             );
 
-        System.assertEquals(5, targetsByTemplate.size());
+        // A paid total alone must not qualify for the consecutive milestone.
+        System.assertEquals(false, targetsByTemplate.containsKey(
+            Utils.THANK_YOU_EMAIL_AFTER_12
+        ));
+        expectedTemplates.remove(12);
+        System.assertEquals(4, targetsByTemplate.size());
         for (String templateKey : expectedTemplates.values()) {
             System.assertEquals(1, targetsByTemplate.get(templateKey).size());
             System.assert(targetsByTemplate.get(templateKey).containsKey(contactId));
         }
+    }
+
+    @isTest
+    static void requiresTwelveConsecutiveInstallmentNumbers() {
+        List<Opportunity> payments = new List<Opportunity>();
+        System.assertEquals(false,
+            RecurringDonationService.hasTwelveConsecutivePayments(null));
+        for (Integer installment = 3; installment <= 14; installment++) {
+            payments.add(new Opportunity(
+                npsp__Recurring_Donation_Installment_Number__c = installment
+            ));
+        }
+        System.assertEquals(true,
+            RecurringDonationService.hasTwelveConsecutivePayments(payments));
+        payments[11].npsp__Recurring_Donation_Installment_Number__c = 15;
+        System.assertEquals(false,
+            RecurringDonationService.hasTwelveConsecutivePayments(payments));
+        payments[11].npsp__Recurring_Donation_Installment_Number__c = 13;
+        System.assertEquals(false,
+            RecurringDonationService.hasTwelveConsecutivePayments(payments));
+        payments[11].npsp__Recurring_Donation_Installment_Number__c = null;
+        System.assertEquals(false,
+            RecurringDonationService.hasTwelveConsecutivePayments(payments));
+        payments[0].npsp__Recurring_Donation_Installment_Number__c = null;
+        System.assertEquals(false,
+            RecurringDonationService.hasTwelveConsecutivePayments(payments));
+        payments.remove(11);
+        System.assertEquals(false,
+            RecurringDonationService.hasTwelveConsecutivePayments(payments));
     }
 
     @isTest
@@ -476,7 +510,12 @@ public class RecurringDonationTest {
                 recurringDonation.Id => oldRecurringDonation
             }
         );
-        System.assertEquals(0, targets.size());
+        System.assertEquals(1, targets.size());
+        System.assertEquals(
+            recurringDonation.Id,
+            targets.get(con.Id),
+            'A cancellation reason is not required for a sponsorship with a future pledge'
+        );
 
         recurringDonation.npsp__ClosedReason__c = 'Other';
         recurringDonation.npsp__Status__c = 'Lapsed';

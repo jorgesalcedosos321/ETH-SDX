@@ -501,13 +501,17 @@ public class RecurringDonationService implements IRecurringDonationService {
 
     //SFESWCSD-91
     public void sendFirstCommittedDonationWelcomeEmail(
-        List<npe03__Recurring_Donation__c> newRecords
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
     ) {
         Map<Id, Integer> newCountsByContact = new Map<Id, Integer>();
         for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            //Changed by Marina request 07092026
+            boolean isInstallmentPaidChanged = (oldRecords == null && recurringDonation.npe03__Total_Paid_Installments__c == 1) || (oldRecords.containsKey(recurringDonation.Id) && oldRecords.get(recurringDonation.Id).npe03__Total_Paid_Installments__c != recurringDonation.npe03__Total_Paid_Installments__c && recurringDonation.npe03__Total_Paid_Installments__c == 1);
             if (
                 recurringDonation.Donation_Type__c == 'Recurring Donation' &&
-                recurringDonation.npe03__Contact__c != null
+                recurringDonation.npe03__Contact__c != null &&
+                isInstallmentPaidChanged
             ) {
                 Id contactId = recurringDonation.npe03__Contact__c;
                 newCountsByContact.put(
@@ -747,7 +751,64 @@ public class RecurringDonationService implements IRecurringDonationService {
                 recurringDonation.Id
             );
         }
+
+        //Changes by Marina 07092026
+        // Remove contacts that do not have 12 consecutive payments from the 12-payment milestone email targets
+        Map<Id, Id> twelvePaymentTargets = targetsByTemplate.get(
+            Utils.THANK_YOU_EMAIL_AFTER_12
+        );
+        if (twelvePaymentTargets != null) {
+            Set<Id> donationIds = new Set<Id>(twelvePaymentTargets.values());
+            Map<Id, List<Opportunity>> paymentsByDonation =
+                new Map<Id, List<Opportunity>>();
+            for (Opportunity payment : [
+                SELECT npe03__Recurring_Donation__c,
+                    npsp__Recurring_Donation_Installment_Number__c
+                FROM Opportunity
+                WHERE npe03__Recurring_Donation__c IN :donationIds
+                    AND StageName = 'Closed Won'
+                ORDER BY npsp__Recurring_Donation_Installment_Number__c ASC
+            ]) {
+                Id donationId = payment.npe03__Recurring_Donation__c;
+                if (!paymentsByDonation.containsKey(donationId)) {
+                    paymentsByDonation.put(donationId, new List<Opportunity>());
+                }
+                paymentsByDonation.get(donationId).add(payment);
+            }
+            for (Id contactId : new Set<Id>(twelvePaymentTargets.keySet())) {
+                if (!hasTwelveConsecutivePayments(
+                    paymentsByDonation.get(twelvePaymentTargets.get(contactId))
+                )) {
+                    twelvePaymentTargets.remove(contactId);
+                }
+            }
+            if (twelvePaymentTargets.isEmpty()) {
+                targetsByTemplate.remove(Utils.THANK_YOU_EMAIL_AFTER_12);
+            }
+        }
         return targetsByTemplate;
+    }
+
+    // Payments must be Closed Won and ordered by installment number.
+    @TestVisible
+    private static Boolean hasTwelveConsecutivePayments(
+        List<Opportunity> payments
+    ) {
+        if (payments == null || payments.size() != 12) {
+            return false;
+        }
+        Decimal firstInstallment =
+            payments[0].npsp__Recurring_Donation_Installment_Number__c;
+        if (firstInstallment == null) {
+            return false;
+        }
+        for (Integer index = 0; index < payments.size(); index++) {
+            if (payments[index].npsp__Recurring_Donation_Installment_Number__c !=
+                firstInstallment + index) {
+                return false;
+            }
+        }
+        return true;
     }
 
     //SFESWCSD-91
@@ -890,7 +951,8 @@ public class RecurringDonationService implements IRecurringDonationService {
             if (
                 changedToCancellationStatus &&
                 recurringDonation.Donation_Type__c == ApiConstants.DONATION_SPONSORSHIP &&
-                String.isNotBlank(recurringDonation.npsp__ClosedReason__c) &&
+                //Commented by Marina excel 07092026
+                //String.isNotBlank(recurringDonation.npsp__ClosedReason__c) && 
                 recurringDonation.npe03__Contact__c != null
             ) {
                 candidatesById.put(recurringDonation.Id, recurringDonation);
