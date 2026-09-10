@@ -1,7 +1,8 @@
 //SFESWCSD-92
 //3rd WS called by SF
 public class ArifPayCancellationService {
-    
+    public String baseUrl = '';
+
     public static HttpResponse cancelDonorSubscription(String sessionUuid, String phoneNumber) {
         if (String.isBlank(sessionUuid) || String.isBlank(phoneNumber)) {
             throw new IllegalArgumentException(
@@ -20,7 +21,7 @@ public class ArifPayCancellationService {
 
         HttpRequest request = new HttpRequest();
         request.setEndpoint(
-            'callout:ArifPay/api/recuring/' +
+            ArifpayService.getEndpoint() + 'ArifPay/api/recuring/' +
             encodedSessionUuid +
             '/subscriber/' +
             encodedPhoneNumber
@@ -52,11 +53,10 @@ public class ArifPayCancellationService {
     
     public static void cancelSubscription(
         ArifPayCancellationRequest request
-    ) {
-        
+    ) {        
         HttpRequest req = new HttpRequest();
         
-        req.setEndpoint('callout:ArifPay/subscription/cancel');
+        req.setEndpoint(ArifpayService.getEndpoint() + 'ArifPay/subscription/cancel');
         req.setMethod('POST');
         req.setHeader(
             'Content-Type',

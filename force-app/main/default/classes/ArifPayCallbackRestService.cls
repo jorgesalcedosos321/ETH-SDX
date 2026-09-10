@@ -21,6 +21,10 @@ global inherited sharing class ArifPayCallbackRestService {
             error();
             return;
         }
+        if (action == 'success') {
+            success();
+            return;
+        }
 
         try {
             insertCallbackLog(req.requestBody.toString(), 'CALLBACK');
@@ -51,6 +55,11 @@ global inherited sharing class ArifPayCallbackRestService {
                 Blob.valueOf(JSON.serialize(error));
 
         }
+    }
+
+    global static void success() {
+        RestRequest req = RestContext.request;
+        insertCallbackLog(req.requestBody.toString(), 'SUCCESS');
     }
 
     global static void cancel() {

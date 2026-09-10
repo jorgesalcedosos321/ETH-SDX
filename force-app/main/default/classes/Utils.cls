@@ -11,7 +11,7 @@ public class Utils {
     public static String[] userToNotifyJSONTransaction = new String[] { 'jorge.salcedo@sos-kd.org' };
         
 	public static List<String> usersToNotifyWSErrors = new List<String> { 'jorge.salcedo@sos-kd.org','nikola.andonovski@sos-kd.org' };
-           
+               
     
     //SFESWCSD-91 SFESWCSD-86 SFESWCSD-85
     public static final String ANNIVERSARY_EMAIL_1 = 'ANNIVERSARY_EMAIL_1';
