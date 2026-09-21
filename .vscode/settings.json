@@ -5,5 +5,19 @@
     "**/.sf": true,
     "**/.sfdx": true
   },
-  "xml.preferences.showSchemaDocumentationType": "none"
+  //Changes for merging apex classes
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.cls": "${capture}.cls-meta.xml",
+    "*.trigger": "${capture}.trigger-meta.xml",
+    "*.page": "${capture}.page-meta.xml",
+    "*.component": "${capture}.component-meta.xml",
+    "*.cmp": "${capture}.cmp-meta.xml, ${capture}Controller.js, ${capture}Helper.js, ${capture}Renderer.js, ${capture}.css, ${capture}.design, ${capture}.auradoc, ${capture}.svg",
+    "*.app": "${capture}.app-meta.xml, ${capture}Controller.js, ${capture}Helper.js, ${capture}Renderer.js, ${capture}.css, ${capture}.auradoc, ${capture}.svg",
+    "*.evt": "${capture}.evt-meta.xml, ${capture}.auradoc",
+    "*.intf": "${capture}.intf-meta.xml, ${capture}.auradoc"
+  },  
+  "xml.preferences.showSchemaDocumentationType": "none",
+  "claudeCodeChat.permissions.yoloMode": true
 }

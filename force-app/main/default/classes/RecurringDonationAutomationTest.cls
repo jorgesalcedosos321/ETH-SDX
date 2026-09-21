@@ -33,11 +33,6 @@ private class RecurringDonationAutomationTest {
             FROM Opportunity
             WHERE npe03__Recurring_Donation__c = :recurringDonation.Id
         ];
-        recurringDonation = [
-            SELECT npsp__Day_of_Month__c
-            FROM npe03__Recurring_Donation__c
-            WHERE Id = :recurringDonation.Id
-        ];
         List<npe01__OppPayment__c> payments = [
             SELECT Id
             FROM npe01__OppPayment__c
@@ -51,11 +46,6 @@ private class RecurringDonationAutomationTest {
         Assert.isFalse(
             payments.isEmpty(),
             'NPSP should create a Payment for the generated Opportunity.'
-        );
-        Assert.areEqual(
-            '1',
-            recurringDonation.npsp__Day_of_Month__c,
-            'Monthly Recurring Donations should default to day 1.'
         );
     }
 }

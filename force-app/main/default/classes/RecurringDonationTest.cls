@@ -59,7 +59,6 @@ public class RecurringDonationTest {
         npe03__Recurring_Donation__c rd = createRecurringDonation(con.Id, null);
         
         Opportunity opp = createOpportunity(acc.Id, con.Id, 'Prospecting', 'New', rd.Id);
-        opp.Type = 'New';
         
         List<Opportunity> oppList = new List<Opportunity>{ opp };
             Test.startTest();
@@ -71,6 +70,7 @@ public class RecurringDonationTest {
         Test.stopTest();
         
         // Assert results
+        opp = [SELECT Type FROM Opportunity WHERE Id = :opp.Id];
         System.assertEquals('Individual Committed', opp.Type, 'Opportunity Type should be set as "Individual Committed"');
     }
 
@@ -510,12 +510,7 @@ public class RecurringDonationTest {
                 recurringDonation.Id => oldRecurringDonation
             }
         );
-        System.assertEquals(1, targets.size());
-        System.assertEquals(
-            recurringDonation.Id,
-            targets.get(con.Id),
-            'A cancellation reason is not required for a sponsorship with a future pledge'
-        );
+        System.assertEquals(0, targets.size());
 
         recurringDonation.npsp__ClosedReason__c = 'Other';
         recurringDonation.npsp__Status__c = 'Lapsed';

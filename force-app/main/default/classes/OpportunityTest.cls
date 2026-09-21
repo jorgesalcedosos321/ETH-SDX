@@ -247,7 +247,11 @@ public class OpportunityTest {
                     primaryContactOpportunity,
                     fallbackContactOpportunity,
                     recurringDonationOpportunity
-                }
+                }, new Map<Id, Opportunity>{ 
+                                                primaryContactOpportunity.Id => primaryContactOpportunity, 
+                                                fallbackContactOpportunity.Id => fallbackContactOpportunity,
+                                                recurringDonationOpportunity.Id => primaryContactOpportunity
+                                            }
             );
 
         System.assertEquals(2, targets.size());
