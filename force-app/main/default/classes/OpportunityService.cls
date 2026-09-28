@@ -244,7 +244,7 @@ public class OpportunityService implements IOpportunityService {
         Map<Id, Id> targets = new Map<Id, Id>();
         
         for (Opportunity opportunity : newRecords) {
-            Boolean stageChangedToClosedWon = (oldRecords == null && opportunity.StageName == 'Closed Won') || (oldRecords.get(opportunity.Id) != null && oldRecords.get(opportunity.Id).StageName != opportunity.StageName && opportunity.StageName == 'Closed Won');
+            Boolean stageChangedToClosedWon = (oldRecords == null && opportunity.StageName == 'Closed Won') || (oldRecords != NULL && oldRecords.get(opportunity.Id) != null && oldRecords.get(opportunity.Id).StageName != opportunity.StageName && opportunity.StageName == 'Closed Won');
             if (opportunity.Donation_Type__c == 'One-time Donation' && stageChangedToClosedWon) {
                 Id contactId = opportunity.npsp__Primary_Contact__c != null
                     ? opportunity.npsp__Primary_Contact__c
@@ -357,7 +357,8 @@ public class OpportunityService implements IOpportunityService {
             if (
                 oldOpportunity == null ||
                 oldOpportunity.StageName == 'Closed Won' ||
-                opportunity.StageName != 'Closed Won'
+                opportunity.StageName != 'Closed Won' ||
+                opportunity.Donation_Type__c != 'One-time Donation'
             ) {
                 continue;
             }
@@ -399,14 +400,15 @@ public class OpportunityService implements IOpportunityService {
             return;
         
         List<Opportunity> oppsToNotify = [SELECT Id, npe03__Recurring_Donation__r.npe03__Total_Paid_Installments__c, npsp__Primary_Contact__c, npsp__Primary_Contact__r.Email, npsp__Primary_Contact__r.FirstName FROM Opportunity WHERE Id IN : oppIds AND npe03__Recurring_Donation__r.npe03__Installment_Period__c  = 'Monthly' AND npsp__Primary_Contact__r.Email <> ''];
-        Set<String> emailTemplateNames = new Set<String>{'Thank You Email','Welcome Email','Referral Ask Email','Impact Email','Upgrade Email','One Year Thank You Email'};
+        Set<String> emailTemplateNames = new Set<String>{'Welcome the new donor CG','Thank You Email','Welcome Email','Referral Ask Email','Impact Email','Upgrade Email','One Year Thank You Email'};
 		List<EmailTemplate> emailTemplates = new List<EmailTemplate>();
         
         if (!Test.isRunningTest()) {
             emailTemplates = [SELECT Id, Name, Subject, HtmlValue, Body FROM EmailTemplate WHERE Name IN : emailTemplateNames];
         } else {
             emailTemplates = new List<EmailTemplate>{
-                new EmailTemplate(Name='Thank You Email', Subject='Thanks!', Body='Hi {{{Recipient.FirstName}}}', TemplateType='custom'),
+                    new EmailTemplate(Name='Welcome the new donor CG', Subject='Thanks!', Body='Hi {{{Recipient.FirstName}}}', TemplateType='custom'),
+                    new EmailTemplate(Name='Thank You Email', Subject='Thanks!', Body='Hi {{{Recipient.FirstName}}}', TemplateType='custom'),
                     new EmailTemplate(Name='Welcome Email', Subject='Welcome!', Body='Hi {{{Recipient.FirstName}}}', TemplateType='custom'),
                     new EmailTemplate(Name='Referral Ask Email', Subject='Refer someone!', Body='Hi {{{Recipient.FirstName}}}', TemplateType='custom'),
                     new EmailTemplate(Name='Impact Email', Subject='Your impact!', Body='Hi {{{Recipient.FirstName}}}', TemplateType='custom'),
@@ -429,7 +431,8 @@ public class OpportunityService implements IOpportunityService {
             
             switch on totalPaidInstallments {
                 when 1 {
-                    currentEmailTemplate = Utils.getEmailTemplateByName(emailTemplates, 'Thank You Email');
+                    //currentEmailTemplate = Utils.getEmailTemplateByName(emailTemplates, 'Thank You Email');
+                    currentEmailTemplate = Utils.getEmailTemplateByName(emailTemplates, 'Welcome the new donor CG');
                 }
                 when 2 {
                     currentEmailTemplate = Utils.getEmailTemplateByName(emailTemplates, 'Welcome Email');
@@ -554,6 +557,193 @@ public class OpportunityService implements IOpportunityService {
             Utils.sendEmails(mails);
         }
     }    
+
+     //SFESWCSD-91
+    public void sendSuccessfulPaymentMilestoneEmails(
+        List<Opportunity> newRecords,
+        Map<Id, Opportunity> oldRecords
+    ) {
+        Map<String, Map<Id, Id>> targetsByTemplate =
+            buildSuccessfulPaymentMilestoneTargets(newRecords, oldRecords);
+
+        System.debug('###sendSuccessfulPaymentMilestoneEmails targetsByTemplate:' + targetsByTemplate);
+        for (String templateKey : targetsByTemplate.keySet()) {
+            Map<Id, Id> targets = targetsByTemplate.get(templateKey);
+            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+                templateKey,
+                targets
+            );
+            System.debug(
+                '###sendSuccessfulPaymentMilestoneEmails ' + templateKey +
+                ': ' + accepted.size() + ' of ' + targets.size() +
+                ' emails accepted'
+            );
+        }
+    }
+
+    @TestVisible
+    private static Map<String, Map<Id, Id>> buildSuccessfulPaymentMilestoneTargets(
+            List<Opportunity> newRecords,
+            Map<Id, Opportunity> oldRecords
+        ) {
+        Map<Integer, String> templatesByPaymentCount = new Map<Integer, String>{
+            1 => Utils.WELCOME_THE_NEW_DONO,
+            2 => Utils.THANK_YOU_EMAIL_AFTER_2,
+            3 => Utils.THANK_YOU_EMAIL_AFTER_3,
+            4 => Utils.THANK_YOU_EMAIL_AFTER_4,
+            6 => Utils.THANK_YOU_EMAIL_AFTER_6,
+            12 => Utils.THANK_YOU_EMAIL_AFTER_12
+        };
+        Map<String, Map<Id, Id>> targetsByTemplate = new Map<String, Map<Id, Id>>();
+        Set<Id> rdIdsToCheck = new Set<Id>();
+
+        for (Opportunity opp : newRecords) {
+            Opportunity oldOpp = (oldRecords != NULL && oldRecords.get(opp.Id) != NULL) ? oldRecords.get(opp.Id) : NULL;
+            Boolean changeStagenameOpp = opp.npe03__Recurring_Donation__c != NULL && opp.npsp__Primary_Contact__c != NULL && opp.StageName == 'Closed Won';
+
+            if (oldOpp != NULL)
+                changeStagenameOpp = oldOpp.StageName != opp.StageName;
+                
+            if (changeStagenameOpp) {
+                rdIdsToCheck.add(opp.npe03__Recurring_Donation__c);
+            }
+        }
+
+        Map<Id, Id> contactIdByRdId = new Map<Id, Id>();
+        for (npe03__Recurring_Donation__c rdToCheck : [
+            SELECT Id, npe03__Contact__c
+            FROM npe03__Recurring_Donation__c
+            WHERE Id IN :rdIdsToCheck
+        ]) {
+            contactIdByRdId.put(rdToCheck.Id, rdToCheck.npe03__Contact__c);
+        }
+
+        Map<Id, List<Opportunity>> closedWonPaymentsByRdId =
+            queryClosedWonPaymentsByRdId(rdIdsToCheck);
+
+        Set<Id> sixConsecutivesRD = new Set<Id>();
+
+        for (Id rdId : rdIdsToCheck) {
+            Integer maxConsecutivePayments = maxConsecutiveClosedWonRun(closedWonPaymentsByRdId.get(rdId));
+
+            if (maxConsecutivePayments == 6) {
+                sixConsecutivesRD.add(rdId);
+            }
+            
+            String templateKey = templatesByPaymentCount.get(maxConsecutivePayments);
+
+            if (String.isNotBlank(templateKey)) {
+                if (!targetsByTemplate.containsKey(templateKey)) {
+                    targetsByTemplate.put(templateKey, new Map<Id, Id>());
+                }
+                targetsByTemplate.get(templateKey).put(
+                    contactIdByRdId.get(rdId),
+                    rdId
+                );
+            }
+        }
+
+        if (!sixConsecutivesRD.isEmpty()) {
+            List<Task> tasks = buildSixPaymentLoyaltyCallTasks(sixConsecutivesRD);
+
+            if (!tasks.isEmpty()) {
+                INSERT tasks;
+            }
+        }
+
+        return targetsByTemplate;
+    }
+
+    
+    @TestVisible
+    private static List<Task> buildSixPaymentLoyaltyCallTasks(Set<Id> recurringDonations) {
+        List<Task> tasks = new List<Task>();
+
+        Set<Id> ownerIds = new Map<Id, User>([SELECT Id FROM User WHERE Email IN (
+                'Yonas.Hailu@sos-ethiopia.org',
+                'beza.teklu@sos-ethiopia.org'
+            ) AND IsActive = true]).keySet();
+
+        if (!ownerIds.isEmpty()) {
+            System.debug(
+                '###createSixPaymentLoyaltyCallTasks: active assignees not found'
+            );
+            return tasks;
+        }
+
+        List<npe03__Recurring_Donation__c> rds = [SELECT Id, npe03__Contact__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName, npe03__Contact__r.Phone, npe03__Contact__r.Email FROM npe03__Recurring_Donation__c WHERE Id IN : recurringDonations AND npe03__Contact__c != NULL];
+        
+        for (npe03__Recurring_Donation__c recurringDonation : rds) {
+            String description =
+                'First Name: ' + (recurringDonation.npe03__Contact__r.FirstName == null ? '' : (recurringDonation.npe03__Contact__r.FirstName)) + '\n' +
+                'Last Name: ' + (recurringDonation.npe03__Contact__r.LastName == null ? '' : (recurringDonation.npe03__Contact__r.LastName)) + '\n' +
+                'Phone: ' + (recurringDonation.npe03__Contact__r.Phone == null ? '' : (recurringDonation.npe03__Contact__r.Phone)) + '\n' +
+                'Email: ' + (recurringDonation.npe03__Contact__r.Email == null ? '' : (recurringDonation.npe03__Contact__r.Email));
+                
+            for (Id ownerId : ownerIds) {
+                tasks.add(new Task(
+                    OwnerId = ownerId,
+                    Subject = 'Loyalty call after 6 payments',
+                    Description = description,
+                    Type = 'Call',
+                    WhoId = recurringDonation.npe03__Contact__c,
+                    WhatId = recurringDonation.Id,
+                    ActivityDate = Date.today(),
+                    Status = 'Not Started',
+                    Priority = 'Normal'
+                ));
+            }
+        }
+        return tasks;
+    }
+
+    // Groups Closed Won Opportunities per Recurring Donation, ordered by installment number ascending.
+    @TestVisible
+    private static Map<Id, List<Opportunity>> queryClosedWonPaymentsByRdId(
+        Set<Id> rdIds
+    ) {
+        Map<Id, List<Opportunity>> closedWonPaymentsByRdId =
+            new Map<Id, List<Opportunity>>();
+        for (Opportunity payment : [
+            SELECT npe03__Recurring_Donation__c,
+                npsp__Recurring_Donation_Installment_Number__c
+            FROM Opportunity
+            WHERE npe03__Recurring_Donation__c IN :rdIds
+                AND StageName = :ApiConstants.STAGE_CLOSED_WON
+            ORDER BY npsp__Recurring_Donation_Installment_Number__c ASC
+        ]) {
+            Id rdId = payment.npe03__Recurring_Donation__c;
+            if (!closedWonPaymentsByRdId.containsKey(rdId)) {
+                closedWonPaymentsByRdId.put(rdId, new List<Opportunity>());
+            }
+            closedWonPaymentsByRdId.get(rdId).add(payment);
+        }
+        return closedWonPaymentsByRdId;
+    }
+
+    // Payments must already be Closed Won and ordered by installment number ascending.
+    @TestVisible
+    private static Integer maxConsecutiveClosedWonRun(List<Opportunity> payments) {
+        if (payments == null || payments.isEmpty()) {
+            return 0;
+        }
+        Integer streak = 1;
+        Integer maxStreak = 1;
+        for (Integer index = 1; index < payments.size(); index++) {
+            Decimal previousInstallment =
+                payments[index - 1].npsp__Recurring_Donation_Installment_Number__c;
+            Decimal currentInstallment =
+                payments[index].npsp__Recurring_Donation_Installment_Number__c;
+            streak = (previousInstallment != null &&
+                currentInstallment == previousInstallment + 1)
+                ? streak + 1
+                : 1;
+            if (streak > maxStreak) {
+                maxStreak = streak;
+            }
+        }
+        return maxStreak;
+    }
     
     public Contact getContactById(List<Contact> conts, Id contactId) {
         for (Contact cont : conts) {

@@ -12,11 +12,8 @@
 **/
 
 public class RecurringDonationHandler {
-	IRecurringDonationService rds = new RecurringDonationService();
-    public void beforeInsert(List<npe03__Recurring_Donation__c> newRecords) {
-		defaultMonthlyDayOfMonth(newRecords);
-   		rds.closeOldRDs(newRecords);
-    }
+    // DEPRECATED
+	/*IRecurringDonationService rds = new RecurringDonationService();    
 
     private void defaultMonthlyDayOfMonth(
         List<npe03__Recurring_Donation__c> newRecords
@@ -32,6 +29,11 @@ public class RecurringDonationHandler {
         }
     }
 
+    public void beforeInsert(List<npe03__Recurring_Donation__c> newRecords) {
+		defaultMonthlyDayOfMonth(newRecords);
+   		rds.closeOldRDs(newRecords);
+    }
+
     //SFESWCSD-85 case 1
     public void afterInsert(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
         rds.sendSponsorshipWelcomeEmail(newRecords);
@@ -43,10 +45,11 @@ public class RecurringDonationHandler {
     
     public void afterUpdate(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
         //SFESWCSD-91
+        rds.sendFirstCommittedDonationWelcomeEmail(newRecords, oldRecords);
         rds.sendSuccessfulPaymentMilestoneEmails(newRecords, oldRecords);
         rds.createSixPaymentLoyaltyCallTasks(newRecords, oldRecords);
         //SFESWCSD-85 case 11
         rds.sendSponsorshipCancellationEmail(newRecords, oldRecords);
         rds.closeOpportunitiesFromClosedRDs(newRecords, oldRecords);
-    }
+    }*/
 }

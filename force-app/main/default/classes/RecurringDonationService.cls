@@ -12,6 +12,18 @@
 **/
 
 public class RecurringDonationService implements IRecurringDonationService {   
+    public void defaultMonthlyDayOfMonth(List<npe03__Recurring_Donation__c> newRecords) {
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            if (
+                recurringDonation.npe03__Installment_Period__c ==
+                    ApiConstants.PERIOD_MONTHLY &&
+                String.isBlank(recurringDonation.npsp__Day_of_Month__c)
+            ) {
+                recurringDonation.npsp__Day_of_Month__c = '1';
+            }
+        }
+    }
+    
     public static void cancelDonation(Set<Id> rdIds) {
         List<npe03__Recurring_Donation__c> rdsToCancel = [SELECT Donation_Id__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName, npe03__Contact__r.Email, npe03__Amount__c From npe03__Recurring_Donation__c WHERE Id IN : rdIds];
         
@@ -507,21 +519,21 @@ public class RecurringDonationService implements IRecurringDonationService {
         Map<Id, Integer> newCountsByContact = new Map<Id, Integer>();
         for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
             //Changed by Marina request 07092026
-            boolean isInstallmentPaidChanged = (oldRecords == null && recurringDonation.npe03__Total_Paid_Installments__c == 1) || (oldRecords.containsKey(recurringDonation.Id) && oldRecords.get(recurringDonation.Id).npe03__Total_Paid_Installments__c != recurringDonation.npe03__Total_Paid_Installments__c && recurringDonation.npe03__Total_Paid_Installments__c == 1);
-            if (
-                recurringDonation.Donation_Type__c == 'Recurring Donation' &&
-                recurringDonation.npe03__Contact__c != null &&
-                isInstallmentPaidChanged
-            ) {
+            //Fixing bug 21092026 SFESWCSD-91
+            boolean isInstallmentPaidChanged = (oldRecords == null && recurringDonation.npe03__Total_Paid_Installments__c == 1) || (oldRecords != null && oldRecords.containsKey(recurringDonation.Id) && oldRecords.get(recurringDonation.Id).npe03__Total_Paid_Installments__c != recurringDonation.npe03__Total_Paid_Installments__c && recurringDonation.npe03__Total_Paid_Installments__c == 1);
+            System.debug('###sendFirstCommittedDonationWelcomeEmail isInstallmentPaidChanged:' + isInstallmentPaidChanged);
+            boolean isContactRD = recurringDonation.Donation_Type__c == 'Recurring Donation' &&  recurringDonation.npe03__Contact__c != null;
+            System.debug('###sendFirstCommittedDonationWelcomeEmail isContactRD:' + isContactRD);
+            if (isContactRD && isInstallmentPaidChanged) {
                 Id contactId = recurringDonation.npe03__Contact__c;
+                Integer numPaids = (newCountsByContact.containsKey(contactId) ? newCountsByContact.get(contactId) : 0) + 1;
                 newCountsByContact.put(
-                    contactId,
-                    (newCountsByContact.containsKey(contactId)
-                        ? newCountsByContact.get(contactId)
-                        : 0) + 1
+                    contactId, numPaids
                 );
             }
         }
+
+        System.debug('###sendFirstCommittedDonationWelcomeEmail newCountsByContact:' + newCountsByContact);
         if (newCountsByContact.isEmpty()) {
             return;
         }
@@ -541,11 +553,15 @@ public class RecurringDonationService implements IRecurringDonationService {
             );
         }
 
+        System.debug('###sendFirstCommittedDonationWelcomeEmail totalCountsByContact:' + totalCountsByContact);
+
         Map<Id, Id> targets = buildFirstCommittedDonationTargets(
             newRecords,
             newCountsByContact,
             totalCountsByContact
         );
+
+        System.debug('###sendFirstCommittedDonationWelcomeEmail targets:' + targets);
         if (targets.isEmpty()) {
             return;
         }
@@ -554,7 +570,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             targets
         );
         System.debug(
-            '###sendFirstCommittedDonationWelcomeEmail: ' + accepted.size() +
+            '###sendFirstCommittedDonationWelcomeEmail result: ' + accepted.size() +
             ' of ' + targets.size() + ' emails accepted'
         );
 
@@ -689,6 +705,8 @@ public class RecurringDonationService implements IRecurringDonationService {
     ) {
         Map<String, Map<Id, Id>> targetsByTemplate =
             buildSuccessfulPaymentMilestoneTargets(newRecords, oldRecords);
+
+        System.debug('###sendSuccessfulPaymentMilestoneEmails targetsByTemplate:' + targetsByTemplate);
         for (String templateKey : targetsByTemplate.keySet()) {
             Map<Id, Id> targets = targetsByTemplate.get(templateKey);
             Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
@@ -809,103 +827,6 @@ public class RecurringDonationService implements IRecurringDonationService {
             }
         }
         return true;
-    }
-
-    //SFESWCSD-91
-    public void createSixPaymentLoyaltyCallTasks(
-        List<npe03__Recurring_Donation__c> newRecords,
-        Map<Id, npe03__Recurring_Donation__c> oldRecords
-    ) {
-        List<npe03__Recurring_Donation__c> eligibleDonations =
-            new List<npe03__Recurring_Donation__c>();
-        Set<Id> contactIds = new Set<Id>();
-        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
-            npe03__Recurring_Donation__c oldRecurringDonation =
-                oldRecords.get(recurringDonation.Id);
-            Decimal oldCount = oldRecurringDonation == null ||
-                oldRecurringDonation.npe03__Total_Paid_Installments__c == null
-                ? 0
-                : oldRecurringDonation.npe03__Total_Paid_Installments__c;
-            if (
-                recurringDonation.Donation_Type__c == 'Recurring Donation' &&
-                recurringDonation.npe03__Contact__c != null &&
-                recurringDonation.npe03__Total_Paid_Installments__c == 6 &&
-                oldCount < 6
-            ) {
-                eligibleDonations.add(recurringDonation);
-                contactIds.add(recurringDonation.npe03__Contact__c);
-            }
-        }
-        if (eligibleDonations.isEmpty()) {
-            return;
-        }
-
-        Set<Id> ownerIds = new Map<Id, User>([
-            SELECT Id
-            FROM User
-            WHERE Email IN (
-                'Yonas.Hailu@sos-ethiopia.org',
-                'beza.teklu@sos-ethiopia.org'
-            )
-            AND IsActive = true
-        ]).keySet();
-        if (ownerIds.isEmpty()) {
-            System.debug(
-                '###createSixPaymentLoyaltyCallTasks: active assignees not found'
-            );
-            return;
-        }
-
-        Map<Id, Contact> contactsById = new Map<Id, Contact>([
-            SELECT Id, FirstName, LastName, Phone, Email
-            FROM Contact
-            WHERE Id IN :contactIds
-        ]);
-        List<Task> tasks = buildSixPaymentLoyaltyCallTasks(
-            eligibleDonations,
-            ownerIds,
-            contactsById
-        );
-        if (!tasks.isEmpty()) {
-            insert tasks;
-        }
-    }
-
-    @TestVisible
-    private static List<Task> buildSixPaymentLoyaltyCallTasks(
-        List<npe03__Recurring_Donation__c> recurringDonations,
-        Set<Id> ownerIds,
-        Map<Id, Contact> contactsById
-    ) {
-        List<Task> tasks = new List<Task>();
-        for (npe03__Recurring_Donation__c recurringDonation :
-            recurringDonations) {
-            Contact contact = contactsById.get(
-                recurringDonation.npe03__Contact__c
-            );
-            if (contact == null) {
-                continue;
-            }
-            String description =
-                'First Name: ' + (contact.FirstName == null ? '' : contact.FirstName) + '\n' +
-                'Last Name: ' + (contact.LastName == null ? '' : contact.LastName) + '\n' +
-                'Phone: ' + (contact.Phone == null ? '' : contact.Phone) + '\n' +
-                'Email: ' + (contact.Email == null ? '' : contact.Email);
-            for (Id ownerId : ownerIds) {
-                tasks.add(new Task(
-                    OwnerId = ownerId,
-                    Subject = 'Loyalty call after 6 payments',
-                    Description = description,
-                    Type = 'Call',
-                    WhoId = contact.Id,
-                    WhatId = recurringDonation.Id,
-                    ActivityDate = Date.today(),
-                    Status = 'Not Started',
-                    Priority = 'Normal'
-                ));
-            }
-        }
-        return tasks;
     }
 
     //SFESWCSD-85 case 11

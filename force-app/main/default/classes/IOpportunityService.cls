@@ -30,6 +30,7 @@ public interface IOpportunityService {
     void sendEmailNotificationForInstallments(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords); //SFESWCSD-40
     void sendEmailNotificationForThreeDeclinedOpps(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords); //SFESWCSD-40
     void closeRecurringDonationWhenOpportunityIsCloseLost(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords);
+    void sendSuccessfulPaymentMilestoneEmails(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords); //SFESWCSD-91
     //void checkProcessToNotify(Map<Id, Integer> toNotify, Map<Id, Id> rdContactIds, Map<Id, Id> oppRdIds, List<Contact> conts);
     //Id getOpportunityByRD(Map<Id, Id> oppRdIds, Id rdId);
     Contact getContactById(List<Contact> conts, Id contactId);

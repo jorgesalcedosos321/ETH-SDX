@@ -12,7 +12,8 @@
 **/
 
 public class OpportunityHandler {
-	IOpportunityService opp = new OpportunityService();
+    //DEPRECATED
+	/*IOpportunityService opp = new OpportunityService();
     public void beforeInsert(List<Opportunity> newRecords) {
    		opp.setOpportunityTypeByRDRT(newRecords);
         opp.setOpportunityTypeWithNoRD(newRecords);     
@@ -36,5 +37,5 @@ public class OpportunityHandler {
         opp.sendEmailNotificationForThreeDeclinedOpps(newRecords,oldRecords); //SFESWCSD-40  
         opp.closeRecurringDonationWhenOpportunityIsCloseLost(newRecords,oldRecords);
         opp.sendOneTimeDonorThankYouEmail(newRecords, oldRecords);//SFESWCSD-86
-    }
+    }*/
 }

@@ -1,5 +1,6 @@
 trigger OpportunityTrigger on Opportunity (before insert, after insert, after update) {
-    OpportunityHandler opp = new OpportunityHandler();
+    //DEPRECATED
+    /*OpportunityHandler opp = new OpportunityHandler();
     if (Trigger.IsBefore) {
         if (Trigger.IsInsert) {
             opp.beforeInsert(Trigger.new);
@@ -12,5 +13,5 @@ trigger OpportunityTrigger on Opportunity (before insert, after insert, after up
         if (Trigger.IsUpdate) {
             opp.afterUpdate(Trigger.new, Trigger.oldMap);
         }
-    }  
+    }  */
 }

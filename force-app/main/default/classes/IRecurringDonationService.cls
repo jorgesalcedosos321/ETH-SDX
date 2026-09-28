@@ -12,6 +12,7 @@
 **/
 
 public interface IRecurringDonationService {
+    void defaultMonthlyDayOfMonth(List<npe03__Recurring_Donation__c> newRecords);
     DonationResponse registerSponsorship(DonationRequest request); //SFESWCSD-92
     DonationResponse registerDonation(DonationRequest request); //SFESWCSD-92
     npe03__Recurring_Donation__c createSponsorship(DonationRequest request, Id contactId); //SFESWCSD-92
@@ -29,5 +30,9 @@ public interface IRecurringDonationService {
     void createSixPaymentLoyaltyCallTasks(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords);
     //SFESWCSD-85 case 11
     void sendSponsorshipCancellationEmail(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords);
-    void closeOpportunitiesFromClosedRDs(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords);  
+    void closeOpportunitiesFromClosedRDs(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords);
+    // Returns, per Recurring Donation Id, whether it has at least consecutiveCount Closed Won opportunities in a row (by installment number).
+    //Map<Id, Boolean> hasConsecutiveClosedWonOpportunities(Set<Id> recurringDonationIds, Integer consecutiveCount);
+    // Returns, per Recurring Donation Id, the length of its longest run of consecutive Closed Won opportunities (by installment number).
+    //Map<Id, Integer> getMaxConsecutiveClosedWonOpportunities(Set<Id> recurringDonationIds);
 }

@@ -1,5 +1,6 @@
 trigger PaymentTrigger on npe01__OppPayment__c (before Insert, before Update, after Update) {
-    PaymentTriggerHandler pay = new PaymentTriggerHandler();
+    //DEPRECATED
+    /*PaymentTriggerHandler pay = new PaymentTriggerHandler();
     if (Trigger.isBefore && Trigger.isInsert) {
         pay.beforeInsertPayment(Trigger.New);
     }
@@ -9,5 +10,5 @@ trigger PaymentTrigger on npe01__OppPayment__c (before Insert, before Update, af
     
     if (Trigger.isAfter && Trigger.isUpdate) {
         pay.afterUpdatePayment(Trigger.New, Trigger.oldMap);
-    }
+    }*/
 }
