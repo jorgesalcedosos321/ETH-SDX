@@ -77,7 +77,7 @@ global inherited sharing class ArifPayCallbackRestService {
         insertCallbackLog(req.requestBody.toString(), 'ERROR');
     }
 
-    private static String getRequestAction(String requestUri) {
+    public static String getRequestAction(String requestUri) {
         if (String.isBlank(requestUri)) {
             return '';
         }

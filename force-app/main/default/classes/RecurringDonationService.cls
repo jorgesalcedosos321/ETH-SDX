@@ -829,6 +829,109 @@ public class RecurringDonationService implements IRecurringDonationService {
         return true;
     }
 
+    //SFESWCSD-91
+    public void createSixPaymentLoyaltyCallTasks(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
+    ) {
+        Map<Id, Id> targets = buildSixPaymentLoyaltyTargets(newRecords, oldRecords);
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        List<Task> tasks = buildSixPaymentLoyaltyTasks(targets);
+        if (!tasks.isEmpty()) {
+            insert tasks;
+        }
+    }
+
+    @TestVisible
+    private static Map<Id, Id> buildSixPaymentLoyaltyTargets(
+        List<npe03__Recurring_Donation__c> newRecords,
+        Map<Id, npe03__Recurring_Donation__c> oldRecords
+    ) {
+        Map<Id, Id> targets = new Map<Id, Id>();
+        for (npe03__Recurring_Donation__c recurringDonation : newRecords) {
+            npe03__Recurring_Donation__c oldRecurringDonation =
+                oldRecords.get(recurringDonation.Id);
+            Decimal newCount =
+                recurringDonation.npe03__Total_Paid_Installments__c;
+            Decimal oldCount = oldRecurringDonation == null ||
+                oldRecurringDonation.npe03__Total_Paid_Installments__c == null
+                ? 0
+                : oldRecurringDonation.npe03__Total_Paid_Installments__c;
+
+            if (
+                recurringDonation.Donation_Type__c != 'Recurring Donation' ||
+                recurringDonation.npe03__Contact__c == null ||
+                newCount == null ||
+                newCount <= oldCount ||
+                newCount.intValue() != 6 ||
+                newCount != newCount.intValue()
+            ) {
+                continue;
+            }
+
+            targets.put(recurringDonation.npe03__Contact__c, recurringDonation.Id);
+        }
+        return targets;
+    }
+
+    @TestVisible
+    private static List<Task> buildSixPaymentLoyaltyTasks(Map<Id, Id> targets) {
+        List<Task> tasks = new List<Task>();
+
+        Set<Id> ownerIds = new Map<Id, User>([
+            SELECT Id
+            FROM User
+            WHERE Email IN (
+                'Yonas.Hailu@sos-ethiopia.org',
+                'beza.teklu@sos-ethiopia.org'
+            )
+            AND IsActive = true
+        ]).keySet();
+        if (ownerIds.isEmpty()) {
+            System.debug(
+                '###createSixPaymentLoyaltyCallTasks: active assignees not found'
+            );
+            return tasks;
+        }
+
+        Map<Id, Contact> contactsById = new Map<Id, Contact>([
+            SELECT Id, FirstName, LastName, Email, Phone
+            FROM Contact
+            WHERE Id IN :targets.keySet()
+        ]);
+
+        for (Id contactId : targets.keySet()) {
+            Contact contact = contactsById.get(contactId);
+            if (contact == null) {
+                continue;
+            }
+
+            String description =
+                'First Name: ' + (contact.FirstName == null ? '' : contact.FirstName) + '\n' +
+                'Last Name: ' + (contact.LastName == null ? '' : contact.LastName) + '\n' +
+                'Phone: ' + (contact.Phone == null ? '' : contact.Phone) + '\n' +
+                'Email: ' + (contact.Email == null ? '' : contact.Email);
+
+            for (Id ownerId : ownerIds) {
+                tasks.add(new Task(
+                    OwnerId = ownerId,
+                    Subject = 'Loyalty call after 6 payments',
+                    Description = description,
+                    Type = 'Call',
+                    WhoId = contact.Id,
+                    WhatId = targets.get(contactId),
+                    ActivityDate = Date.today(),
+                    Status = 'Not Started',
+                    Priority = 'Normal'
+                ));
+            }
+        }
+        return tasks;
+    }
+
     //SFESWCSD-85 case 11
     public void sendSponsorshipCancellationEmail(
         List<npe03__Recurring_Donation__c> newRecords,
@@ -910,22 +1013,36 @@ public class RecurringDonationService implements IRecurringDonationService {
     }
     
     public void closeOpportunitiesFromClosedRDs(List<npe03__Recurring_Donation__c> newRecords, Map<Id, npe03__Recurring_Donation__c> oldRecords) {
-		Set<Id> rdIds = new Set<Id>();
+		//Set<Id> rdIds = new Set<Id>();
+        Map<Id, String> rdIds = new Map<Id, String>();
+
         for (npe03__Recurring_Donation__c newRecord : newRecords) {
             if (newRecord.npsp__Status__c != oldRecords.get(newRecord.Id).npsp__Status__c && newRecord.npsp__Status__c == 'Closed') {
-                rdIds.add(newRecord.Id);
+                //rdIds.add(newRecord.Id);
+                rdIds.put(newRecord.Id, newRecord.Donation_ID__c);
             }
         }
-        
-        System.debug('closeOpportunitiesFromClosedRDs rdIds:' + rdIds);    
-        List<Opportunity> opps = [SELECT Id, StageName FROM Opportunity WHERE npe03__Recurring_Donation__c IN : rdIds AND StageName = 'Pledged'];
+
+        System.debug('closeOpportunitiesFromClosedRDs rdIds:' + rdIds);
+        List<Opportunity> opps = [SELECT Id, StageName FROM Opportunity WHERE npe03__Recurring_Donation__c IN : rdIds.keySet() AND StageName = 'Pledged'];
         System.debug('closeOpportunitiesFromClosedRDs opps:' + opps);
-        
+
         if (!opps.isEmpty()) {
             for (Opportunity opp : opps) {
                 opp.StageName = 'Closed Lost';
             }
             UPDATE opps;
+        }
+
+        // Trigger context can't make synchronous callouts, and each closed RD
+        // needs its own ArifPay callout sequence, so every session UUID is
+        // dispatched as its own chained Queueable (see ArifPayRDCancellationQueueable).
+        for (String sessionUuid : rdIds.values()) {
+            if (String.isNotBlank(sessionUuid)) {
+                System.enqueueJob(
+                    new ArifPayRDCancellationQueueable(sessionUuid, 'INACTIVE')
+                );
+            }
         }
     }
 }

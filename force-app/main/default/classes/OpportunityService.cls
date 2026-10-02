@@ -595,7 +595,7 @@ public class OpportunityService implements IOpportunityService {
             12 => Utils.THANK_YOU_EMAIL_AFTER_12
         };
         Map<String, Map<Id, Id>> targetsByTemplate = new Map<String, Map<Id, Id>>();
-        Set<Id> rdIdsToCheck = new Set<Id>();
+        Map<Id, Id> rdIdsToCheck = new Map<Id, Id>();
 
         for (Opportunity opp : newRecords) {
             Opportunity oldOpp = (oldRecords != NULL && oldRecords.get(opp.Id) != NULL) ? oldRecords.get(opp.Id) : NULL;
@@ -605,7 +605,7 @@ public class OpportunityService implements IOpportunityService {
                 changeStagenameOpp = oldOpp.StageName != opp.StageName;
                 
             if (changeStagenameOpp) {
-                rdIdsToCheck.add(opp.npe03__Recurring_Donation__c);
+                rdIdsToCheck.put(opp.npe03__Recurring_Donation__c, opp.Id);
             }
         }
 
@@ -613,7 +613,7 @@ public class OpportunityService implements IOpportunityService {
         for (npe03__Recurring_Donation__c rdToCheck : [
             SELECT Id, npe03__Contact__c
             FROM npe03__Recurring_Donation__c
-            WHERE Id IN :rdIdsToCheck
+            WHERE Id IN :rdIdsToCheck.keySet()
         ]) {
             contactIdByRdId.put(rdToCheck.Id, rdToCheck.npe03__Contact__c);
         }
@@ -622,17 +622,23 @@ public class OpportunityService implements IOpportunityService {
             queryClosedWonPaymentsByRdId(rdIdsToCheck);
 
         Set<Id> sixConsecutivesRD = new Set<Id>();
+        // Milestone emails already sent per RD (templateKey|rdId), so they are not sent twice
+        Set<String> alreadySentMilestones = querySentMilestoneEmailKeys(
+            rdIdsToCheck.keySet(),
+            new Set<String>(templatesByPaymentCount.values())
+        );
 
-        for (Id rdId : rdIdsToCheck) {
+        for (Id rdId : rdIdsToCheck.keySet()) {
             Integer maxConsecutivePayments = maxConsecutiveClosedWonRun(closedWonPaymentsByRdId.get(rdId));
 
             if (maxConsecutivePayments == 6) {
                 sixConsecutivesRD.add(rdId);
             }
-            
+
             String templateKey = templatesByPaymentCount.get(maxConsecutivePayments);
 
-            if (String.isNotBlank(templateKey)) {
+            if (String.isNotBlank(templateKey) &&
+                !alreadySentMilestones.contains(templateKey + '|' + String.valueOf(rdId))) {
                 if (!targetsByTemplate.containsKey(templateKey)) {
                     targetsByTemplate.put(templateKey, new Map<Id, Id>());
                 }
@@ -654,7 +660,36 @@ public class OpportunityService implements IOpportunityService {
         return targetsByTemplate;
     }
 
-    
+    // Reads DLE_Email_Log__c (written by DLE_EmailDispatchService) and returns 'eventKey|rdId' for every
+    // milestone email already sent successfully. One query, read-only. Failed sends do not count.
+    //SFESWCSD-91
+    @TestVisible
+    private static Set<String> querySentMilestoneEmailKeys(
+        Set<Id> rdIds,
+        Set<String> eventKeys
+    ) {
+        Set<String> sentKeys = new Set<String>();
+        if (rdIds == null || rdIds.isEmpty() || eventKeys == null || eventKeys.isEmpty()) {
+            return sentKeys;
+        }
+
+        Set<String> rdIdStrings = new Set<String>();
+        for (Id rdId : rdIds) {
+            rdIdStrings.add(String.valueOf(rdId));
+        }
+
+        for (DLE_Email_Log__c emailLog : [
+            SELECT Event_Key__c, What_Id__c
+            FROM DLE_Email_Log__c
+            WHERE What_Id__c IN :rdIdStrings
+            AND Event_Key__c IN :eventKeys
+            AND Status__c = 'Sent'
+        ]) {
+            sentKeys.add(emailLog.Event_Key__c + '|' + emailLog.What_Id__c);
+        }
+        return sentKeys;
+    }
+
     @TestVisible
     private static List<Task> buildSixPaymentLoyaltyCallTasks(Set<Id> recurringDonations) {
         List<Task> tasks = new List<Task>();
@@ -700,25 +735,90 @@ public class OpportunityService implements IOpportunityService {
     // Groups Closed Won Opportunities per Recurring Donation, ordered by installment number ascending.
     @TestVisible
     private static Map<Id, List<Opportunity>> queryClosedWonPaymentsByRdId(
-        Set<Id> rdIds
+        Map<Id, Id> rdIds
     ) {
         Map<Id, List<Opportunity>> closedWonPaymentsByRdId =
             new Map<Id, List<Opportunity>>();
-        for (Opportunity payment : [
+        
+        List<Opportunity> payments = [
             SELECT npe03__Recurring_Donation__c,
-                npsp__Recurring_Donation_Installment_Number__c
+                npsp__Recurring_Donation_Installment_Number__c, StageName
             FROM Opportunity
-            WHERE npe03__Recurring_Donation__c IN :rdIds
-                AND StageName = :ApiConstants.STAGE_CLOSED_WON
-            ORDER BY npsp__Recurring_Donation_Installment_Number__c ASC
-        ]) {
-            Id rdId = payment.npe03__Recurring_Donation__c;
+            WHERE npe03__Recurring_Donation__c IN :rdIds.keySet()
+            ORDER BY npe03__Recurring_Donation__c, CloseDate DESC, CreatedDate DESC, npsp__Recurring_Donation_Installment_Number__c ASC];
+
+        for (Id rdId : rdIds.keySet()) {
+            Integer consecutiveNumbers = getConsecutiveTotalPaidNumberByRdsAndStatus(rdId, rdIds.get(rdId), payments, ApiConstants.STAGE_CLOSED_WON);
             if (!closedWonPaymentsByRdId.containsKey(rdId)) {
                 closedWonPaymentsByRdId.put(rdId, new List<Opportunity>());
             }
-            closedWonPaymentsByRdId.get(rdId).add(payment);
         }
         return closedWonPaymentsByRdId;
+    }
+
+    // Returns how many Opportunities of the given Recurring Donation have StageName equal to the status
+    // sent, in any order (not restricted to consecutive ones), provided oppIdToCheck is one of them.
+    // Uses the already queried list, no SOQL. Returns 0 when oppIdToCheck is not in that status.
+    //SFESWCSD-91
+    @TestVisible
+    private static Integer getTotalPaidNumberByRdsAndStatus(
+        Id rdId,
+        Id oppIdToCheck,
+        List<Opportunity> payments,
+        String status
+    ) {
+        if (rdId == null || oppIdToCheck == null || String.isBlank(status) || payments == null) {
+            return 0;
+        }
+
+        Integer total = 0;
+        Boolean hasOppToCheck = false;
+        for (Opportunity opp : payments) {
+            if (opp.npe03__Recurring_Donation__c != rdId || opp.StageName != status) {
+                continue;
+            }
+            total++;
+            if (opp.Id == oppIdToCheck) {
+                hasOppToCheck = true;
+            }
+        }
+        return hasOppToCheck ? total : 0;
+    }
+
+    // Returns the length of the run of consecutive Opportunities of the given Recurring Donation whose
+    // StageName equals the status sent AND that contains oppIdToCheck. Uses the already queried
+    // (ordered) list, no SOQL. Returns 0 when oppIdToCheck is not in the RD sequence or is not in that status.
+    //SFESWCSD-91
+    @TestVisible
+    private static Integer getConsecutiveTotalPaidNumberByRdsAndStatus(
+        Id rdId,
+        Id oppIdToCheck,
+        List<Opportunity> payments,
+        String status
+    ) {
+        if (rdId == null || oppIdToCheck == null || String.isBlank(status) || payments == null) {
+            return 0;
+        }
+
+        Integer streak = 0;
+        Boolean runHasOppToCheck = false;
+        for (Opportunity opp : payments) {
+            if (opp.npe03__Recurring_Donation__c != rdId) {
+                continue;
+            }
+            if (opp.StageName == status) {
+                streak++;
+                if (opp.Id == oppIdToCheck) {
+                    runHasOppToCheck = true;
+                }
+            } else {
+                if (runHasOppToCheck) {
+                    return streak;
+                }
+                streak = 0;
+            }
+        }
+        return runHasOppToCheck ? streak : 0;
     }
 
     // Payments must already be Closed Won and ordered by installment number ascending.

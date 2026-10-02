@@ -3,11 +3,20 @@
     <types>
         <members>ArifPayCancellationService</members>
         <members>ArifpayService</members>
+        <members>ArifPaySubscriber</members>
+        <members>ArifPaySubscriberListResponse</members>
+        <members>ArifPaySubscriberCancellationQueueable</members>
+        <members>ArifPayRDCancellationQueueable</members>
+        <members>RecurringDonationService</members>
         <name>ApexClass</name>
     </types>
     <types>
         <members>Arifpay_Config__mdt.Merchant_API_Key__c</members>
         <name>CustomField</name>
+    </types>
+    <types>
+        <members>ArifPay_Gateway</members>
+        <name>RemoteSiteSetting</name>
     </types>
     <version>67.0</version>
 </Package>
