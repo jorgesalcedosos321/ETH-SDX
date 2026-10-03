@@ -12,6 +12,61 @@
 **/
 
 public class OpportunityService implements IOpportunityService {
+
+    //SFESWCSD-91 queue that owns the loyalty / welcome call Tasks
+    @TestVisible private static String DONOR_CALLS_QUEUE = 'Donations_Calls';
+
+    //SFESWCSD-91 former individual assignees of the loyalty / welcome call Tasks
+    @TestVisible private static final String TASK_ASSIGNEE_YONAS_EMAIL = 'Yonas.Hailu@sos-ethiopia.org';
+    @TestVisible private static final String TASK_ASSIGNEE_BEZA_EMAIL = 'beza.teklu@sos-ethiopia.org';
+
+    //SFESWCSD-113
+    public void setFirstOpportunityCloseDate(List<Opportunity> newRecords) {
+        Map<Id, Opportunity> firstOppByRdId = new Map<Id, Opportunity>();
+        for (Opportunity newRecord : newRecords) {
+            Id rdId = newRecord.npe03__Recurring_Donation__c;
+            if (rdId == NULL) {
+                continue;
+            }
+            Opportunity current = firstOppByRdId.get(rdId);
+            if (current == NULL || (newRecord.CloseDate != NULL && (current.CloseDate == NULL || newRecord.CloseDate < current.CloseDate))) {
+                firstOppByRdId.put(rdId, newRecord);
+            }
+        }
+
+        if (firstOppByRdId.isEmpty()) {
+            return;
+        }
+
+        //SFESWCSD-113 An RD with previous opportunities already has its first one, keep its earliest CloseDate as reference
+        Map<Id, Date> firstDateByRdId = new Map<Id, Date>();
+        for (AggregateResult ar : [SELECT npe03__Recurring_Donation__c rdId, MIN(CloseDate) firstDate FROM Opportunity WHERE npe03__Recurring_Donation__c IN : firstOppByRdId.keySet() GROUP BY npe03__Recurring_Donation__c]) {
+            firstDateByRdId.put((Id) ar.get('rdId'), (Date) ar.get('firstDate'));
+        }
+
+        Set<Id> newFirstOppIds = new Set<Id>();
+        for (npe03__Recurring_Donation__c rd : [SELECT Id, npe03__Date_Established__c FROM npe03__Recurring_Donation__c WHERE Id IN : firstOppByRdId.keySet()]) {
+            if (!firstDateByRdId.containsKey(rd.Id)) {
+                Opportunity firstOpp = firstOppByRdId.get(rd.Id);
+                if (rd.npe03__Date_Established__c != NULL) {
+                    firstOpp.CloseDate = rd.npe03__Date_Established__c;
+                }
+                newFirstOppIds.add(rd.Id);
+                firstDateByRdId.put(rd.Id, firstOpp.CloseDate);
+            }
+        }
+
+        //SFESWCSD-113 Any other opportunity falling in the same month as the first one moves to the next month
+        for (Opportunity newRecord : newRecords) {
+            Id rdId = newRecord.npe03__Recurring_Donation__c;
+            Date firstDate = rdId != NULL ? firstDateByRdId.get(rdId) : NULL;
+            Boolean isNewFirst = rdId != NULL && newFirstOppIds.contains(rdId) && firstOppByRdId.get(rdId) === newRecord;
+            if (firstDate != NULL && !isNewFirst && newRecord.CloseDate != NULL && newRecord.CloseDate.year() == firstDate.year() && newRecord.CloseDate.month() == firstDate.month()) {
+                newRecord.CloseDate = newRecord.CloseDate.addMonths(1);
+            }
+        }
+    }
+
     /**
      * Creates a donation Opportunity.
      */
@@ -594,12 +649,13 @@ public class OpportunityService implements IOpportunityService {
             6 => Utils.THANK_YOU_EMAIL_AFTER_6,
             12 => Utils.THANK_YOU_EMAIL_AFTER_12
         };
+
         Map<String, Map<Id, Id>> targetsByTemplate = new Map<String, Map<Id, Id>>();
         Map<Id, Id> rdIdsToCheck = new Map<Id, Id>();
 
         for (Opportunity opp : newRecords) {
             Opportunity oldOpp = (oldRecords != NULL && oldRecords.get(opp.Id) != NULL) ? oldRecords.get(opp.Id) : NULL;
-            Boolean changeStagenameOpp = opp.npe03__Recurring_Donation__c != NULL && opp.npsp__Primary_Contact__c != NULL && opp.StageName == 'Closed Won';
+            Boolean changeStagenameOpp = opp.npe03__Recurring_Donation__c != NULL && opp.npsp__Primary_Contact__c != NULL && opp.StageName == ApiConstants.STAGE_CLOSED_WON;
 
             if (oldOpp != NULL)
                 changeStagenameOpp = oldOpp.StageName != opp.StageName;
@@ -609,19 +665,22 @@ public class OpportunityService implements IOpportunityService {
             }
         }
 
-        Map<Id, Id> contactIdByRdId = new Map<Id, Id>();
-        for (npe03__Recurring_Donation__c rdToCheck : [
-            SELECT Id, npe03__Contact__c
+        // Contact details are queried here once and reused by buildDonorCallTasks (SFESWCSD-91)
+        Map<Id, npe03__Recurring_Donation__c> rdById = new Map<Id, npe03__Recurring_Donation__c>([
+            SELECT Id, npe03__Contact__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName,
+                npe03__Contact__r.Phone, npe03__Contact__r.Email
             FROM npe03__Recurring_Donation__c
             WHERE Id IN :rdIdsToCheck.keySet()
-        ]) {
+        ]);
+        Map<Id, Id> contactIdByRdId = new Map<Id, Id>();
+        for (npe03__Recurring_Donation__c rdToCheck : rdById.values()) {
             contactIdByRdId.put(rdToCheck.Id, rdToCheck.npe03__Contact__c);
         }
 
-        Map<Id, List<Opportunity>> closedWonPaymentsByRdId =
-            queryClosedWonPaymentsByRdId(rdIdsToCheck);
+        List<Opportunity> rdPayments = queryPaymentsByRdIds(rdIdsToCheck.keySet());
 
         Set<Id> sixConsecutivesRD = new Set<Id>();
+        Set<Id> firstPaymentRD = new Set<Id>();
         // Milestone emails already sent per RD (templateKey|rdId), so they are not sent twice
         Set<String> alreadySentMilestones = querySentMilestoneEmailKeys(
             rdIdsToCheck.keySet(),
@@ -629,16 +688,27 @@ public class OpportunityService implements IOpportunityService {
         );
 
         for (Id rdId : rdIdsToCheck.keySet()) {
-            Integer maxConsecutivePayments = maxConsecutiveClosedWonRun(closedWonPaymentsByRdId.get(rdId));
+            // Consecutive Closed Won run that contains the Opportunity that triggered this check
+            Integer consecutivePayments = getConsecutiveTotalPaidNumberByRdsAndStatus(
+                rdId,
+                rdIdsToCheck.get(rdId),
+                rdPayments,
+                ApiConstants.STAGE_CLOSED_WON
+            );
 
-            if (maxConsecutivePayments == 6) {
-                sixConsecutivesRD.add(rdId);
-            }
+            String templateKey = templatesByPaymentCount.get(consecutivePayments);
 
-            String templateKey = templatesByPaymentCount.get(maxConsecutivePayments);
-
+            //SFESWCSD-91
             if (String.isNotBlank(templateKey) &&
                 !alreadySentMilestones.contains(templateKey + '|' + String.valueOf(rdId))) {
+                // Loyalty call task only the first time the 6-payment email is due
+                if (consecutivePayments == 6) {
+                    sixConsecutivesRD.add(rdId);
+                }
+                // Welcome task only the first time the welcome email is due (first payment)
+                if (consecutivePayments == 1) {
+                    firstPaymentRD.add(rdId);
+                }
                 if (!targetsByTemplate.containsKey(templateKey)) {
                     targetsByTemplate.put(templateKey, new Map<Id, Id>());
                 }
@@ -649,13 +719,8 @@ public class OpportunityService implements IOpportunityService {
             }
         }
 
-        if (!sixConsecutivesRD.isEmpty()) {
-            List<Task> tasks = buildSixPaymentLoyaltyCallTasks(sixConsecutivesRD);
-
-            if (!tasks.isEmpty()) {
-                INSERT tasks;
-            }
-        }
+        //SFESWCSD-91
+        buildDonorCallTasks(rdById, sixConsecutivesRD, firstPaymentRD);
 
         return targetsByTemplate;
     }
@@ -690,70 +755,84 @@ public class OpportunityService implements IOpportunityService {
         return sentKeys;
     }
 
+    // One Call Task owned by the Donations_Calls queue per Recurring Donation and subject, carrying the
+    // donor contact details. Creates the six-payment loyalty tasks and the first-payment welcome tasks
+    // through DLE_TaskService (which also bell-notifies the queue members), so the queue is queried once.
+    // DLE_TaskService takes one subject/contact per call, so it is called once per task; it checks the
+    // DML row limit itself and never throws. The Recurring Donations (with Contact FirstName, LastName,
+    // Phone and Email) come already queried from the caller, so no extra query on them.
+    // If the queue does not exist in the org nothing is created and the Opportunity save is not blocked.
+    //SFESWCSD-91
     @TestVisible
-    private static List<Task> buildSixPaymentLoyaltyCallTasks(Set<Id> recurringDonations) {
-        List<Task> tasks = new List<Task>();
-
-        Set<Id> ownerIds = new Map<Id, User>([SELECT Id FROM User WHERE Email IN (
-                'Yonas.Hailu@sos-ethiopia.org',
-                'beza.teklu@sos-ethiopia.org'
-            ) AND IsActive = true]).keySet();
-
-        if (!ownerIds.isEmpty()) {
-            System.debug(
-                '###createSixPaymentLoyaltyCallTasks: active assignees not found'
-            );
-            return tasks;
+    private static void buildDonorCallTasks(
+        Map<Id, npe03__Recurring_Donation__c> rdById,
+        Set<Id> loyaltyRecurringDonations,
+        Set<Id> welcomeRecurringDonations
+    ) {
+        Set<Id> allRecurringDonations = new Set<Id>(loyaltyRecurringDonations);
+        allRecurringDonations.addAll(welcomeRecurringDonations);
+        if (allRecurringDonations.isEmpty()) {
+            return;
         }
 
-        List<npe03__Recurring_Donation__c> rds = [SELECT Id, npe03__Contact__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName, npe03__Contact__r.Phone, npe03__Contact__r.Email FROM npe03__Recurring_Donation__c WHERE Id IN : recurringDonations AND npe03__Contact__c != NULL];
-        
-        for (npe03__Recurring_Donation__c recurringDonation : rds) {
+        List<Group> queues = [SELECT Id FROM Group WHERE DeveloperName = :DONOR_CALLS_QUEUE AND Type = 'Queue' LIMIT 1];
+        if (queues.isEmpty()) {
+            System.debug('###buildDonorCallTasks: queue ' + DONOR_CALLS_QUEUE + ' not found');
+            return;
+        }
+        Id queueId = queues[0].Id;
+
+        for (Id rdId : allRecurringDonations) {
+            npe03__Recurring_Donation__c recurringDonation = rdById.get(rdId);
+            if (recurringDonation == null || recurringDonation.npe03__Contact__c == null) {
+                continue;
+            }
+            
             String description =
                 'First Name: ' + (recurringDonation.npe03__Contact__r.FirstName == null ? '' : (recurringDonation.npe03__Contact__r.FirstName)) + '\n' +
                 'Last Name: ' + (recurringDonation.npe03__Contact__r.LastName == null ? '' : (recurringDonation.npe03__Contact__r.LastName)) + '\n' +
                 'Phone: ' + (recurringDonation.npe03__Contact__r.Phone == null ? '' : (recurringDonation.npe03__Contact__r.Phone)) + '\n' +
                 'Email: ' + (recurringDonation.npe03__Contact__r.Email == null ? '' : (recurringDonation.npe03__Contact__r.Email));
                 
-            for (Id ownerId : ownerIds) {
-                tasks.add(new Task(
-                    OwnerId = ownerId,
-                    Subject = 'Loyalty call after 6 payments',
-                    Description = description,
-                    Type = 'Call',
-                    WhoId = recurringDonation.npe03__Contact__c,
-                    WhatId = recurringDonation.Id,
-                    ActivityDate = Date.today(),
-                    Status = 'Not Started',
-                    Priority = 'Normal'
-                ));
+            List<String> subjects = new List<String>();
+            if (loyaltyRecurringDonations.contains(recurringDonation.Id)) {
+                subjects.add('Loyalty call after 6 payments');
+            }
+            if (welcomeRecurringDonations.contains(recurringDonation.Id)) {
+                subjects.add('Welcome the new donor CG');
+            }
+
+            for (String subject : subjects) {
+                DLE_TaskService.Request req = new DLE_TaskService.Request();
+                req.ownerIds    = new Set<Id>{ queueId };
+                req.subject     = subject;
+                req.whoId       = recurringDonation.npe03__Contact__c;
+                req.whatId      = recurringDonation.Id;
+                req.dueDate     = Date.today(); 
+                req.priority    = 'Normal';
+                req.taskSubtype = 'Call';
+                req.description = description;                        
+                DLE_TaskService.TaskResult result = DLE_TaskService.createTasks(req);
+                if (result.failedCount > 0) {
+                    System.debug('###buildDonorCallTasks: task not created for RD ' + rdId + ': ' + result.errors);
+                }
             }
         }
-        return tasks;
     }
 
-    // Groups Closed Won Opportunities per Recurring Donation, ordered by installment number ascending.
+    // Returns every Opportunity (any stage) of the given Recurring Donations, ordered per RD from the
+    // newest to the oldest installment, so getConsecutiveTotalPaidNumberByRdsAndStatus can detect breaks
+    // in the run. Ordered by CreatedDate (NPSP creates installments in sequence) and not by CloseDate:
+    // Closed Won moves CloseDate to today while Missed keeps its scheduled date, which would hide the gaps.
+    //SFESWCSD-91
     @TestVisible
-    private static Map<Id, List<Opportunity>> queryClosedWonPaymentsByRdId(
-        Map<Id, Id> rdIds
-    ) {
-        Map<Id, List<Opportunity>> closedWonPaymentsByRdId =
-            new Map<Id, List<Opportunity>>();
-        
-        List<Opportunity> payments = [
-            SELECT npe03__Recurring_Donation__c,
-                npsp__Recurring_Donation_Installment_Number__c, StageName
+    private static List<Opportunity> queryPaymentsByRdIds(Set<Id> rdIds) {
+        return [
+            SELECT Id, npe03__Recurring_Donation__c, StageName
             FROM Opportunity
-            WHERE npe03__Recurring_Donation__c IN :rdIds.keySet()
-            ORDER BY npe03__Recurring_Donation__c, CloseDate DESC, CreatedDate DESC, npsp__Recurring_Donation_Installment_Number__c ASC];
-
-        for (Id rdId : rdIds.keySet()) {
-            Integer consecutiveNumbers = getConsecutiveTotalPaidNumberByRdsAndStatus(rdId, rdIds.get(rdId), payments, ApiConstants.STAGE_CLOSED_WON);
-            if (!closedWonPaymentsByRdId.containsKey(rdId)) {
-                closedWonPaymentsByRdId.put(rdId, new List<Opportunity>());
-            }
-        }
-        return closedWonPaymentsByRdId;
+            WHERE npe03__Recurring_Donation__c IN :rdIds
+            ORDER BY npe03__Recurring_Donation__c, CreatedDate DESC, CloseDate DESC
+        ];
     }
 
     // Returns how many Opportunities of the given Recurring Donation have StageName equal to the status
@@ -821,30 +900,6 @@ public class OpportunityService implements IOpportunityService {
         return runHasOppToCheck ? streak : 0;
     }
 
-    // Payments must already be Closed Won and ordered by installment number ascending.
-    @TestVisible
-    private static Integer maxConsecutiveClosedWonRun(List<Opportunity> payments) {
-        if (payments == null || payments.isEmpty()) {
-            return 0;
-        }
-        Integer streak = 1;
-        Integer maxStreak = 1;
-        for (Integer index = 1; index < payments.size(); index++) {
-            Decimal previousInstallment =
-                payments[index - 1].npsp__Recurring_Donation_Installment_Number__c;
-            Decimal currentInstallment =
-                payments[index].npsp__Recurring_Donation_Installment_Number__c;
-            streak = (previousInstallment != null &&
-                currentInstallment == previousInstallment + 1)
-                ? streak + 1
-                : 1;
-            if (streak > maxStreak) {
-                maxStreak = streak;
-            }
-        }
-        return maxStreak;
-    }
-    
     public Contact getContactById(List<Contact> conts, Id contactId) {
         for (Contact cont : conts) {
             if (cont.Id == contactId)  {

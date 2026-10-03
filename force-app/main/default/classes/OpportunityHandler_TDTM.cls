@@ -16,6 +16,7 @@ global class OpportunityHandler_TDTM extends npsp.TDTM_Runnable{
             opp.setOpportunityTypeByRDRT(newRecords);
             opp.setOpportunityTypeWithNoRD(newRecords);     
             opp.setDefaultValuesForRDOpportunity(newRecords);
+            opp.setFirstOpportunityCloseDate(newRecords); //SFESWCSD-113
         } else if (triggerAction == npsp.TDTM_Runnable.Action.AfterInsert) {
             opp.sendOneTimeDonorThankYouEmail(newRecords, oldRecords);//SFESWCSD-86
             opp.checkOpportunitiesWithNoRDToNotify(newRecords,oldRecords);//SFESWCSD-86

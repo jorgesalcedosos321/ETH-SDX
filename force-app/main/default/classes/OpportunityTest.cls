@@ -19,11 +19,13 @@ public class OpportunityTest {
             new Opportunity(
                 Id = nonRecurringOpportunityId,
                 StageName = 'Closed Won',
+                Donation_Type__c = 'One-time Donation',
                 ContactId = nonRecurringContactId
             ),
             new Opportunity(
                 Id = firstInstallmentOpportunityId,
                 StageName = 'Closed Won',
+                Donation_Type__c = 'One-time Donation',
                 npe03__Recurring_Donation__c = recurringDonationId,
                 npsp__Recurring_Donation_Installment_Number__c = 1,
                 npsp__Primary_Contact__c = recurringContactId
@@ -31,6 +33,7 @@ public class OpportunityTest {
             new Opportunity(
                 Id = laterInstallmentOpportunityId,
                 StageName = 'Closed Won',
+                Donation_Type__c = 'One-time Donation',
                 npe03__Recurring_Donation__c = recurringDonationId,
                 npsp__Recurring_Donation_Installment_Number__c = 2,
                 npsp__Primary_Contact__c = recurringContactId
@@ -38,6 +41,7 @@ public class OpportunityTest {
             new Opportunity(
                 Id = unchangedOpportunityId,
                 StageName = 'Closed Won',
+                Donation_Type__c = 'One-time Donation',
                 ContactId = nonRecurringContactId
             )
         };
@@ -77,11 +81,13 @@ public class OpportunityTest {
 
         Opportunity noContact = new Opportunity(
             Id = Id.valueOf('006000000000005'),
-            StageName = 'Closed Won'
+            StageName = 'Closed Won',
+            Donation_Type__c = 'One-time Donation'
         );
         Opportunity notWon = new Opportunity(
             Id = Id.valueOf('006000000000006'),
             StageName = 'Pledged',
+            Donation_Type__c = 'One-time Donation',
             ContactId = nonRecurringContactId
         );
         targets = OpportunityService.buildPaymentConfirmationTargets(
@@ -170,8 +176,8 @@ public class OpportunityTest {
         Test.stopTest();
         
         // Assert results
-        opp = [SELECT Type FROM Opportunity WHERE Id = :opp.Id];
-        System.assertEquals('Individual Committed', opp.Type, 'Opportunity Type should be set as "Individual Committed"');
+        // The service sets the Type on the in-memory records (BeforeInsert), it does not update them
+        System.assertEquals('Individual Committed', oppList[0].Type, 'Opportunity Type should be set as "Individual Committed"');
     }
 
     @isTest
@@ -191,8 +197,7 @@ public class OpportunityTest {
         Test.stopTest();
         
         // Assert results
-        opp = [SELECT Type FROM Opportunity WHERE Id = :opp.Id];
-        System.assertEquals('Corporate One-off', opp.Type, 'Opportunity Type should be set as "Corporate One-off"');
+        System.assertEquals('Corporate One-off', oppList[0].Type, 'Opportunity Type should be set as "Corporate One-off"');
     }
 
     @isTest
@@ -228,18 +233,27 @@ public class OpportunityTest {
             Id = Id.valueOf('006000000000001'),
             ContactId = fallbackContactId,
             npsp__Primary_Contact__c = primaryContactId,
+            StageName = 'Closed Won',
             Donation_Type__c = 'One-time Donation'
         );
         Opportunity fallbackContactOpportunity = new Opportunity(
             Id = Id.valueOf('006000000000002'),
             ContactId = fallbackContactId,
+            StageName = 'Closed Won',
             Donation_Type__c = 'One-time Donation'
         );
         Opportunity recurringDonationOpportunity = new Opportunity(
             Id = Id.valueOf('006000000000003'),
             ContactId = primaryContactId,
+            StageName = 'Closed Won',
             Donation_Type__c = 'Recurring Donation'
         );
+        // Previous stage of each Opportunity: targets are only built when it moves to Closed Won
+        Map<Id, Opportunity> oldOpportunities = new Map<Id, Opportunity>{
+            primaryContactOpportunity.Id => new Opportunity(Id = primaryContactOpportunity.Id, StageName = 'Pledged'),
+            fallbackContactOpportunity.Id => new Opportunity(Id = fallbackContactOpportunity.Id, StageName = 'Pledged'),
+            recurringDonationOpportunity.Id => new Opportunity(Id = recurringDonationOpportunity.Id, StageName = 'Pledged')
+        };
 
         Map<Id, Id> targets =
             OpportunityService.buildOneTimeDonorThankYouTargets(
@@ -247,11 +261,8 @@ public class OpportunityTest {
                     primaryContactOpportunity,
                     fallbackContactOpportunity,
                     recurringDonationOpportunity
-                }, new Map<Id, Opportunity>{ 
-                                                primaryContactOpportunity.Id => primaryContactOpportunity, 
-                                                fallbackContactOpportunity.Id => fallbackContactOpportunity,
-                                                recurringDonationOpportunity.Id => primaryContactOpportunity
-                                            }
+                },
+                oldOpportunities
             );
 
         System.assertEquals(2, targets.size());
@@ -492,5 +503,212 @@ public class OpportunityTest {
 
         Opportunity result = new OpportunityService().isThreeConsecutivesDeclinedOpps(opp3.Id, rd.Id, new List<Opportunity>{opp1, opp2, opp3});
         System.assertEquals(null, result);
+    }
+
+    //SFESWCSD-113
+    private static npe03__Recurring_Donation__c createRDWithNoOpportunities(Id contactId, Date dateEstablished) {
+        npe03__Recurring_Donation__c rd = createRecurringDonation(contactId, null);
+        rd.npe03__Date_Established__c = dateEstablished;
+        update rd;
+        delete [SELECT Id FROM Opportunity WHERE npe03__Recurring_Donation__c = :rd.Id];
+        return rd;
+    }
+
+    //SFESWCSD-113 The TDTM handler does not run in test context, so the service is called directly
+    //on in-memory Opportunities, as the BeforeInsert handler does.
+    private static Opportunity newOpportunity(Id rdId, Date closeDate) {
+        return new Opportunity(
+            Name = 'Opp113',
+            StageName = 'Prospecting',
+            npe03__Recurring_Donation__c = rdId,
+            CloseDate = closeDate
+        );
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void shouldSetCloseDateToDateEstablished_WhenFirstOpportunityOfRD() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        Date established = Date.today().addDays(10);
+        npe03__Recurring_Donation__c rd = createRDWithNoOpportunities(con.Id, established);
+        Opportunity opp = newOpportunity(rd.Id, Date.today());
+
+        Test.startTest();
+        new OpportunityService().setFirstOpportunityCloseDate(new List<Opportunity>{ opp });
+        Test.stopTest();
+
+        Assert.areEqual(established, opp.CloseDate, 'First opportunity should use the RD Date Established as CloseDate');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void shouldAddOneMonth_WhenSecondOpportunityIsInSameMonthAsFirst() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c rd = createRDWithNoOpportunities(con.Id, Date.newInstance(2030, 1, 10));
+        insert newOpportunity(rd.Id, Date.newInstance(2030, 1, 10));
+        Opportunity second = newOpportunity(rd.Id, Date.newInstance(2030, 1, 20));
+
+        Test.startTest();
+        new OpportunityService().setFirstOpportunityCloseDate(new List<Opportunity>{ second });
+        Test.stopTest();
+
+        Assert.areEqual(Date.newInstance(2030, 2, 20), second.CloseDate, 'Second opportunity in the same month as the first should move one month ahead');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void shouldKeepCloseDate_WhenSecondOpportunityIsInAnotherMonth() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c rd = createRDWithNoOpportunities(con.Id, Date.newInstance(2030, 1, 10));
+        insert newOpportunity(rd.Id, Date.newInstance(2030, 1, 10));
+        Opportunity second = newOpportunity(rd.Id, Date.newInstance(2030, 2, 5));
+
+        Test.startTest();
+        new OpportunityService().setFirstOpportunityCloseDate(new List<Opportunity>{ second });
+        Test.stopTest();
+
+        Assert.areEqual(Date.newInstance(2030, 2, 5), second.CloseDate, 'Second opportunity in a different month should keep its CloseDate');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void shouldKeepCloseDate_WhenOpportunityHasNoRD() {
+        Opportunity opp = newOpportunity(null, Date.today());
+
+        Test.startTest();
+        new OpportunityService().setFirstOpportunityCloseDate(new List<Opportunity>{ opp });
+        Test.stopTest();
+
+        Assert.areEqual(Date.today(), opp.CloseDate, 'One-off opportunities should keep their CloseDate');
+    }
+
+    //SFESWCSD-91 Returns the Donations_Calls queue, creating it (enabled for Task) if the org does not have it
+    private static Id getOrCreateDonationsCallsQueue() {
+        List<Group> existing = [
+            SELECT Id FROM Group
+            WHERE Type = 'Queue' AND DeveloperName = :OpportunityService.DONOR_CALLS_QUEUE
+            LIMIT 1
+        ];
+        if (!existing.isEmpty()) {
+            return existing[0].Id;
+        }
+        Id queueId;
+        // Queues are setup objects: DML on them must not be mixed with the data created by the test
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Group donationsCalls = new Group(
+                Name = 'Donations Calls',
+                DeveloperName = OpportunityService.DONOR_CALLS_QUEUE,
+                Type = 'Queue'
+            );
+            insert donationsCalls;
+            insert new QueueSobject(QueueId = donationsCalls.Id, SobjectType = 'Task');
+            queueId = donationsCalls.Id;
+        }
+        return queueId;
+    }
+
+    //SFESWCSD-91
+    private static Map<Id, npe03__Recurring_Donation__c> queryRecurringDonationsWithContact(Set<Id> rdIds) {
+        return new Map<Id, npe03__Recurring_Donation__c>([
+            SELECT Id, npe03__Contact__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName,
+                npe03__Contact__r.Phone, npe03__Contact__r.Email
+            FROM npe03__Recurring_Donation__c
+            WHERE Id IN :rdIds
+        ]);
+    }
+
+    //SFESWCSD-91
+    @isTest
+    static void shouldCreateLoyaltyAndWelcomeTasksOwnedByTheQueue() {
+        Id queueId = getOrCreateDonationsCallsQueue();
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c loyaltyRd = createRecurringDonation(con.Id, null);
+        npe03__Recurring_Donation__c welcomeRd = createRecurringDonation(con.Id, null);
+        npe03__Recurring_Donation__c bothRd = createRecurringDonation(con.Id, null);
+        Map<Id, npe03__Recurring_Donation__c> rdById = queryRecurringDonationsWithContact(
+            new Set<Id>{ loyaltyRd.Id, welcomeRd.Id, bothRd.Id }
+        );
+
+        Test.startTest();
+        OpportunityService.buildDonorCallTasks(
+            rdById,
+            new Set<Id>{ loyaltyRd.Id, bothRd.Id },
+            new Set<Id>{ welcomeRd.Id, bothRd.Id }
+        );
+        Test.stopTest();
+
+        Map<String, Task> tasksByKey = new Map<String, Task>();
+        for (Task donorTask : [
+            SELECT Subject, OwnerId, WhoId, WhatId, Description, ActivityDate, Priority
+            FROM Task
+            WHERE WhatId IN :rdById.keySet()
+        ]) {
+            tasksByKey.put(donorTask.WhatId + '|' + donorTask.Subject, donorTask);
+        }
+
+        Assert.areEqual(4, tasksByKey.size(), 'One task per RD and subject: loyalty, welcome and both for the RD in the two sets');
+        for (String key : new List<String>{
+            loyaltyRd.Id + '|Loyalty call after 6 payments',
+            welcomeRd.Id + '|Welcome the new donor CG',
+            bothRd.Id + '|Loyalty call after 6 payments',
+            bothRd.Id + '|Welcome the new donor CG'
+        }) {
+            Task donorTask = tasksByKey.get(key);
+            Assert.isNotNull(donorTask, 'Missing task ' + key);
+            Assert.areEqual(queueId, donorTask.OwnerId, 'The task must be owned by the queue, not by a user');
+            Assert.areEqual(con.Id, donorTask.WhoId);
+            Assert.areEqual(Date.today(), donorTask.ActivityDate);
+            Assert.areEqual('Normal', donorTask.Priority);
+            Assert.isTrue(donorTask.Description.contains('First Name: John'), 'Description carries the donor contact details');
+            Assert.isTrue(donorTask.Description.contains('Last Name: Doe'));
+        }
+    }
+
+    //SFESWCSD-91
+    @isTest
+    static void shouldNotCreateTasks_WhenThereAreNoRecurringDonationsToCall() {
+        getOrCreateDonationsCallsQueue();
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c rd = createRecurringDonation(con.Id, null);
+
+        Test.startTest();
+        // Nothing to call
+        OpportunityService.buildDonorCallTasks(
+            queryRecurringDonationsWithContact(new Set<Id>{ rd.Id }),
+            new Set<Id>(),
+            new Set<Id>()
+        );
+        // The RD to call is not in the queried map
+        OpportunityService.buildDonorCallTasks(
+            new Map<Id, npe03__Recurring_Donation__c>(),
+            new Set<Id>{ rd.Id },
+            new Set<Id>()
+        );
+        Test.stopTest();
+
+        Assert.areEqual(0, [SELECT COUNT() FROM Task WHERE WhatId = :rd.Id]);
+    }
+
+    //SFESWCSD-91
+    @isTest
+    static void shouldNotFailTheSave_WhenTheQueueDoesNotExist() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c rd = createRecurringDonation(con.Id, null);
+        Map<Id, npe03__Recurring_Donation__c> rdById = queryRecurringDonationsWithContact(new Set<Id>{ rd.Id });
+
+        // The org queue cannot be deleted (existing Tasks use it), so point the service to one that does not exist
+        OpportunityService.DONOR_CALLS_QUEUE = 'Queue_That_Does_Not_Exist';
+
+        Test.startTest();
+        OpportunityService.buildDonorCallTasks(rdById, new Set<Id>{ rd.Id }, new Set<Id>{ rd.Id });
+        Test.stopTest();
+
+        Assert.areEqual(0, [SELECT COUNT() FROM Task WHERE WhatId = :rd.Id], 'No task is created and no exception is thrown');
     }
 }

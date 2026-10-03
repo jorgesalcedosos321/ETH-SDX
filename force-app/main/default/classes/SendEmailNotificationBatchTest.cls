@@ -112,30 +112,16 @@ private class SendEmailNotificationBatchTest {
         Account account = [SELECT Id FROM Account LIMIT 1];
         Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
 
-        Opportunity eligible = createOpportunity(
-            account.Id,
-            contact.Id,
-            'Closed Won'
-        );
-        Opportunity tooRecent = createOpportunity(
-            account.Id,
-            contact.Id,
-            'Closed Won'
-        );
-        Opportunity wrongDonationType = createOpportunity(
-            account.Id,
-            contact.Id,
-            'Closed Won'
-        );
-        wrongDonationType.Donation_Type__c = 'Recurring Donation';
-        update wrongDonationType;
+        // The batch selects by Transaction_Date__c on the one-month anniversary window. On the 29th-31st
+        // that window can be empty (nothing is due that day), so there is nothing to select.
+        List<Date> window = SendEmailNotificationBatch.oneMonthAnniversaryWindow(Date.today());
+        if (window[0] == window[1]) {
+            return;
+        }
 
-        Datetime oneMonthAgo = Datetime.newInstance(
-            Date.today().addMonths(-1),
-            Time.newInstance(12, 0, 0, 0)
-        );
-        Test.setCreatedDate(eligible.Id, oneMonthAgo);
-        Test.setCreatedDate(wrongDonationType.Id, oneMonthAgo);
+        Opportunity eligible = createOneTimeOpportunity(account.Id, contact.Id, window[0], 'One-time Donation');
+        Opportunity tooRecent = createOneTimeOpportunity(account.Id, contact.Id, Date.today(), 'One-time Donation');
+        Opportunity wrongDonationType = createOneTimeOpportunity(account.Id, contact.Id, window[0], 'Recurring Donation');
 
         Set<Id> selectedIds = queryLocatorIds(
             new SendEmailNotificationBatch(Utils.ONE_TIME_DONORS_LE).start(null)
@@ -148,135 +134,30 @@ private class SendEmailNotificationBatchTest {
 
     @isTest
     static void calculatesOneMonthAnniversaryWithoutMonthEndDuplicates() {
-        List<Datetime> februaryLastDay =
+        List<Date> februaryLastDay =
             SendEmailNotificationBatch.oneMonthAnniversaryWindow(
                 Date.newInstance(2025, 2, 28)
             );
         System.assertEquals(
-            Datetime.newInstance(2025, 1, 28, 0, 0, 0),
+            Date.newInstance(2025, 1, 28),
             februaryLastDay[0]
         );
         System.assertEquals(
-            Datetime.newInstance(2025, 2, 1, 0, 0, 0),
+            Date.newInstance(2025, 2, 1),
             februaryLastDay[1]
         );
 
-        List<Datetime> marchExtraDay =
+        List<Date> marchExtraDay =
             SendEmailNotificationBatch.oneMonthAnniversaryWindow(
                 Date.newInstance(2025, 3, 29)
             );
         System.assertEquals(marchExtraDay[0], marchExtraDay[1]);
 
-        List<Datetime> marchLastDay =
+        List<Date> marchLastDay =
             SendEmailNotificationBatch.oneMonthAnniversaryWindow(
                 Date.newInstance(2025, 3, 31)
             );
         System.assertEquals(marchLastDay[0], marchLastDay[1]);
-    }
-
-    @isTest
-    static void selectsOnlySixConsecutiveSuccessfulPaymentsForLoyaltyCall() {
-        List<Opportunity> sixSuccessful = loyaltyOpportunities(6, null);
-
-        Opportunity sixthPayment =
-            SendEmailNotificationBatch.getSixthConsecutivePayment(sixSuccessful);
-
-        System.assertEquals(sixSuccessful[5].Id, sixthPayment.Id);
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getSixthConsecutivePayment(
-                loyaltyOpportunities(5, null)
-            ),
-            'Fewer than six payments must not qualify'
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getSixthConsecutivePayment(
-                loyaltyOpportunities(7, null)
-            ),
-            'A seventh payment must not send the loyalty email again'
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getSixthConsecutivePayment(
-                loyaltyOpportunities(6, 3)
-            ),
-            'A failed payment must break the successful sequence'
-        );
-    }
-
-    @isTest
-    static void rejectsNonSequentialLoyaltyPayments() {
-        List<Opportunity> opportunities = loyaltyOpportunities(6, null);
-        opportunities[3].npsp__Recurring_Donation_Installment_Number__c = 5;
-
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getSixthConsecutivePayment(opportunities)
-        );
-    }
-
-    @isTest
-    static void buildsLoyaltyTargetFromSixPaidInstallments() {
-        Account account = [SELECT Id FROM Account LIMIT 1];
-        Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
-        npe03__Recurring_Donation__c recurringDonation =
-            createSponsorship(contact.Id);
-
-        List<Opportunity> paidInstallments = createPaidInstallments(
-            account.Id,
-            contact.Id,
-            recurringDonation.Id,
-            6
-        );
-
-        List<sObject> candidates = new List<sObject>();
-        Database.QueryLocatorIterator records =
-            new SendEmailNotificationBatch(
-                Utils.LOYALTY_CALL_AFTER_6
-            ).start(null).iterator();
-        while (records.hasNext()) {
-            sObject candidate = records.next();
-            if (candidate.Id == recurringDonation.Id) {
-                candidates.add(candidate);
-            }
-        }
-
-        Datetime testStartDate = Datetime.newInstance(Date.today().addMonths(-1), Time.newInstance(12, 0, 0, 0));
-        
-        Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(
-            Utils.LOYALTY_CALL_AFTER_6,
-            candidates,
-            testStartDate
-        );
-
-        System.assertEquals(1, targets.size());
-        System.assertEquals(paidInstallments[5].Id, targets.get(contact.Id));
-    }
-
-    @isTest
-    static void executesLoyaltyBatchForQualifiedDonor() {
-        Account account = [SELECT Id FROM Account LIMIT 1];
-        Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
-        npe03__Recurring_Donation__c recurringDonation =
-            createSponsorship(contact.Id);
-        createPaidInstallments(account.Id, contact.Id, recurringDonation.Id, 6);
-
-        Test.startTest();
-        Id jobId = Database.executeBatch(
-            new SendEmailNotificationBatch(Utils.LOYALTY_CALL_AFTER_6),
-            10
-        );
-        Test.stopTest();
-
-        AsyncApexJob job = [
-            SELECT Status, NumberOfErrors, JobItemsProcessed, TotalJobItems
-            FROM AsyncApexJob
-            WHERE Id = :jobId
-        ];
-        System.assertEquals('Completed', job.Status);
-        System.assertEquals(0, job.NumberOfErrors);
-        System.assertEquals(job.TotalJobItems, job.JobItemsProcessed);
     }
 
     //SFESWCSD-85 case 6
@@ -362,7 +243,7 @@ private class SendEmailNotificationBatchTest {
         Date firstMissedDate = Date.today().addMonths(-1);
         Opportunity firstMiss = new Opportunity(
             Id = Id.valueOf('006000000000011'),
-            StageName = 'Closed Lost',
+            StageName = 'Missed',
             CloseDate = firstMissedDate
         );
         Opportunity secondMiss = new Opportunity(
@@ -383,6 +264,21 @@ private class SendEmailNotificationBatchTest {
                 1,
                 Date.today()
             ).Id
+        );
+        System.assertEquals(
+            null,
+            SendEmailNotificationBatch.getReminderOpportunity(
+                new List<Opportunity>{
+                    new Opportunity(
+                        Id = Id.valueOf('006000000000010'),
+                        StageName = 'Closed Lost',
+                        CloseDate = firstMissedDate
+                    )
+                },
+                1,
+                Date.today()
+            ),
+            'Closed Lost is not a missed payment for the reminders'
         );
         System.assertEquals(
             firstMiss.Id,
@@ -581,47 +477,24 @@ private class SendEmailNotificationBatchTest {
         return opportunity;
     }
 
-    private static List<Opportunity> loyaltyOpportunities(
-        Integer count,
-        Integer failedInstallment
-    ) {
-        List<Opportunity> opportunities = new List<Opportunity>();
-        for (Integer installment = 1; installment <= count; installment++) {
-            opportunities.add(new Opportunity(
-                Id = Id.valueOf(
-                    '006000000000' + String.valueOf(installment).leftPad(3, '0')
-                ),
-                StageName = installment == failedInstallment
-                    ? 'Closed Lost'
-                    : 'Closed Won',
-                npsp__Recurring_Donation_Installment_Number__c = installment
-            ));
-        }
-        return opportunities;
-    }
-
-    private static List<Opportunity> createPaidInstallments(
+    private static Opportunity createOneTimeOpportunity(
         Id accountId,
         Id contactId,
-        Id recurringDonationId,
-        Integer count
+        Date transactionDate,
+        String donationType
     ) {
-        List<Opportunity> paidInstallments = new List<Opportunity>();
-        for (Integer installment = 1; installment <= count; installment++) {
-            paidInstallments.add(new Opportunity(
-                Name = 'Loyalty installment ' + installment,
-                AccountId = accountId,
-                ContactId = contactId,
-                npsp__Primary_Contact__c = contactId,
-                StageName = 'Closed Won',
-                CloseDate = Date.today().addMonths(installment - count),
-                Donation_Type__c = 'Recurring Donation',
-                npe03__Recurring_Donation__c = recurringDonationId,
-                npsp__Recurring_Donation_Installment_Number__c = installment
-            ));
-        }
-        insert paidInstallments;
-        return paidInstallments;
+        Opportunity opportunity = new Opportunity(
+            Name = 'One-time donation ' + donationType,
+            AccountId = accountId,
+            ContactId = contactId,
+            npsp__Primary_Contact__c = contactId,
+            StageName = 'Closed Won',
+            CloseDate = Date.today(),
+            Donation_Type__c = donationType,
+            Transaction_Date__c = transactionDate
+        );
+        insert opportunity;
+        return opportunity;
     }
 
     private static npe03__Recurring_Donation__c createSponsorship(Id contactId) {

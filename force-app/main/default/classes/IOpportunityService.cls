@@ -14,6 +14,7 @@
 public interface IOpportunityService {
     Opportunity createDonation(DonationRequest request, Id accountId, Id contactId);
     void sendOneTimeDonorThankYouEmail(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords);//SFESWCSD-86
+    void setFirstOpportunityCloseDate(List<Opportunity> newRecords); //SFESWCSD-113
     //SFESWCSD-85 case 3
     void sendPaymentConfirmationEmail(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords);
     //Opportunity buildOpportunity(DonationRequest request, Id accountId);
