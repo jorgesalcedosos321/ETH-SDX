@@ -22,7 +22,7 @@ public inherited sharing class ValidationService {
         }
 
         if (request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE)) {
-            if (String.isBlank(request.accountName)) {
+            if (String.isBlank(request.companyName)) {
                 throw new DonationValidationException(
                     'Account name is required for corporate donors.'
                 );
@@ -46,7 +46,7 @@ public inherited sharing class ValidationService {
 
     private static void validateDonation(DonationRequest request) {
 
-        if (request.donationAmount == null || request.donationAmount <= 0) {
+        if (request.amount == null || request.amount <= 0) {
             throw new DonationValidationException('Amount must be greater than zero.');
         }
 

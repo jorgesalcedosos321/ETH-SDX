@@ -7,7 +7,7 @@ private class ValidationServiceTest {
 
         DonationRequest corporate = validRequest();
         corporate.donorType = ApiConstants.DONOR_CORPORATE;
-        corporate.accountName = null;
+        corporate.companyName = null;
         assertValidationError(
             corporate,
             'Account name is required for corporate donors.'
@@ -15,13 +15,13 @@ private class ValidationServiceTest {
 
         corporate = validRequest();
         corporate.donorType = ApiConstants.DONOR_CORPORATE;
-        corporate.accountName = 'Corporate Donor';
+        corporate.companyName = 'Corporate Donor';
         corporate.firstName = null;
         assertValidationError(corporate, 'First Name is required.');
 
         corporate = validRequest();
         corporate.donorType = ApiConstants.DONOR_CORPORATE;
-        corporate.accountName = 'Corporate Donor';
+        corporate.companyName = 'Corporate Donor';
         corporate.lastName = null;
         assertValidationError(corporate, 'Last Name is required.');
 
@@ -41,7 +41,7 @@ private class ValidationServiceTest {
     @IsTest
     static void validatesDonationPaymentSponsorshipAndConsent() {
         DonationRequest request = validRequest();
-        request.donationAmount = 0;
+        request.amount = 0;
         assertValidationError(request, 'Amount must be greater than zero.');
 
         request = validRequest();
@@ -80,7 +80,7 @@ private class ValidationServiceTest {
         request.firstName = 'Valid';
         request.lastName = 'Donor';
         request.email = 'valid.donor@example.org';
-        request.donationAmount = 25;
+        request.amount = 25;
         request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
         request.campaignId = 'VALIDATION-CAMPAIGN';
         request.paymentMethod = ApiConstants.PAYMENT_CARD;

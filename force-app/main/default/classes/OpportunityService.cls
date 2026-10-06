@@ -119,7 +119,7 @@ public class OpportunityService implements IOpportunityService {
         opp.Name = buildOpportunityName(request);
         opp.StageName = ApiConstants.STAGE_PLEDGED;
         opp.CloseDate = Date.today();
-        opp.Amount = request.donationAmount;
+        opp.Amount = request.amount;
 
         Id campaignId = CampaignService.getCampaignId(request);
 
@@ -147,7 +147,7 @@ public class OpportunityService implements IOpportunityService {
         opp.Name = buildOpportunityName(request);
         opp.StageName = ApiConstants.STAGE_PLEDGED;
         opp.CloseDate = Date.today();
-        opp.Amount = request.donationAmount;
+        opp.Amount = request.amount;
 
         Id campaignId = CampaignService.getCampaignId(request);
 
@@ -170,8 +170,8 @@ public class OpportunityService implements IOpportunityService {
     ) {
         if (request.donorType != null &&
             request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE) &&
-            !String.isBlank(request.accountName)) {
-            return request.accountName + ' Donation';
+            !String.isBlank(request.companyName)) {
+            return request.companyName + ' Donation';
         }
 
         if (!String.isBlank(request.firstName)

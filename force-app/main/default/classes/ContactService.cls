@@ -78,10 +78,10 @@ public with sharing class ContactService {
             request.source
         );
 
-        contact.MailingStreet = request.mailingStreet;
+        contact.MailingStreet = request.addressLine1;
         contact.MailingCity = request.city;
-        contact.MailingState = request.mailingState;
-        contact.MailingPostalCode = request.mailingPostalCode;
+        contact.MailingState = request.region;
+        contact.MailingPostalCode = request.zip;
         contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;
@@ -117,10 +117,10 @@ public with sharing class ContactService {
         if (source != null) {
             contact.Source__c = source;
         }
-        contact.MailingStreet = request.mailingStreet;
+        contact.MailingStreet = request.addressLine1;
         contact.MailingCity = request.city;
-        contact.MailingState = request.mailingState;
-        contact.MailingPostalCode = request.mailingPostalCode;
+        contact.MailingState = request.region;
+        contact.MailingPostalCode = request.zip;
         contact.MailingCountry = request.country;
 
         contact.HasOptedOutOfEmail = request.emailOptOut;

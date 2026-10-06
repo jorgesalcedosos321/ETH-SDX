@@ -101,7 +101,7 @@ public inherited sharing class CallbackService {
             }
 
             currentPayment.npe01__Payment_Date__c = request.transactionDate;
-            currentPayment.npe01__Check_Reference_Number__c = request.referenceId;
+            currentPayment.npe01__Check_Reference_Number__c = request.transactionId;
             UPDATE currentPayment;
         }
 

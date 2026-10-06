@@ -4,7 +4,7 @@
 //SFESWCSD-92
 public class DonationRequest {
     // Transaction
-    public String transactionType;       // Prospect | Donation
+    public String formType; //transactionType       // Prospect | Donation
     public String donorType;             // Individual | Corporate
     public String donationType;          // OneOff | Recurring | Sponsorship
     public String donationId;
@@ -14,14 +14,13 @@ public class DonationRequest {
     public String sponsorshipCategory;
     public String villageSelection;
     public String age;
-    public String sponsorshipPreference;
+    public String preference;//sponsorshipPreference
     public String sponsorshipId;
 
     // Donation
-    public Decimal donationAmount;
+    public Decimal amount; //donationAmount
     public String frequency;
     public Date dateEstablished;
-    public String company;
 
     // Contact
     public String salutation;
@@ -35,12 +34,12 @@ public class DonationRequest {
     // Address
     public String city;
     public String country;
-    public String mailingStreet;
-    public String mailingState;
-    public String mailingPostalCode;
+    public String addressLine1; //mailingStreet
+    public String region; //mailingState
+    public String zip; //mailingPostalCode
 
     // Organization
-    public String accountName;
+    public String companyName;
 
     // Consent
     public Boolean emailOptOut;
@@ -49,7 +48,8 @@ public class DonationRequest {
 
     // Campaign
     public String campaignId;
-    public String recurringUUID;
+    public String donationGuid;//recurringUUID
+    public String referenceId;
 
     // Payment
     public String paymentMethod;

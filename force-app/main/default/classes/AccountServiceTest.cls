@@ -63,7 +63,7 @@ private class AccountServiceTest {
             WHERE Id = :result.Id
         ];
 
-        Assert.areEqual(request.accountName, createdAccount.Name);
+        Assert.areEqual(request.companyName, createdAccount.Name);
         Assert.areEqual(request.email, createdAccount.Email__c);
         Assert.areEqual(request.phone, createdAccount.Phone);
     }
@@ -78,7 +78,7 @@ private class AccountServiceTest {
 
         Account result = AccountService.createOrUpdate(request);
 
-        Assert.areEqual(request.accountName, result.Name);
+        Assert.areEqual(request.companyName, result.Name);
     }
 
     private static DonationRequest corporateRequest(
@@ -88,7 +88,7 @@ private class AccountServiceTest {
     ) {
         DonationRequest request = new DonationRequest();
         request.donorType = ApiConstants.DONOR_CORPORATE;
-        request.accountName = accountName;
+        request.companyName = accountName;
         request.email = email;
         request.phone = phone;
         return request;

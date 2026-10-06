@@ -238,141 +238,41 @@ private class SendEmailNotificationBatchTest {
     //SFESWCSD-85 case 8
     //SFESWCSD-85 case 9
     //SFESWCSD-85 case 10
+    private static npe01__OppPayment__c missedPayment(Integer idSuffix, Integer monthsBack) {
+        String suffix = String.valueOf(idSuffix).leftPad(3, '0');
+        return new npe01__OppPayment__c(
+            Id = Id.valueOf('a05000000000' + suffix),
+            npe01__Opportunity__c = Id.valueOf('006000000000' + suffix),
+            npe01__Scheduled_Date__c = Date.today().addMonths(-monthsBack)
+        );
+    }
+
     @isTest
     static void evaluatesConsecutiveMissedPaymentReminders() {
-        Date firstMissedDate = Date.today().addMonths(-1);
-        Opportunity firstMiss = new Opportunity(
-            Id = Id.valueOf('006000000000011'),
-            StageName = 'Missed',
-            CloseDate = firstMissedDate
-        );
-        Opportunity secondMiss = new Opportunity(
-            Id = Id.valueOf('006000000000012'),
-            StageName = 'Declined',
-            CloseDate = Date.today().addMonths(-2)
-        );
-        Opportunity thirdMiss = new Opportunity(
-            Id = Id.valueOf('006000000000013'),
-            StageName = 'Missed',
-            CloseDate = Date.today().addMonths(-3)
-        );
+        npe01__OppPayment__c m1 = missedPayment(11, 1);
+        npe01__OppPayment__c m2 = missedPayment(12, 2);
+        npe01__OppPayment__c m3 = missedPayment(13, 3);
+        npe01__OppPayment__c m4 = missedPayment(14, 4);
+        Date today = Date.today();
 
-        System.assertEquals(
-            firstMiss.Id,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss },
-                1,
-                Date.today()
-            ).Id
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{
-                    new Opportunity(
-                        Id = Id.valueOf('006000000000010'),
-                        StageName = 'Closed Lost',
-                        CloseDate = firstMissedDate
-                    )
-                },
-                1,
-                Date.today()
-            ),
-            'Closed Lost is not a missed payment for the reminders'
-        );
-        System.assertEquals(
-            firstMiss.Id,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss, secondMiss },
-                2,
-                Date.today()
-            ).Id
-        );
-        System.assertEquals(
-            firstMiss.Id,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss, secondMiss, thirdMiss },
-                3,
-                Date.today()
-            ).Id
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss, secondMiss, thirdMiss },
-                1,
-                Date.today()
-            ),
-            'Three misses must not send REMINDER_1'
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss, secondMiss, thirdMiss },
-                2,
-                Date.today()
-            ),
-            'Three misses must not send REMINDER_2'
-        );
-        Opportunity fourthMiss = new Opportunity(
-            Id = Id.valueOf('006000000000014'),
-            StageName = 'Declined',
-            CloseDate = Date.today().addMonths(-4)
-        );
-        List<Opportunity> fourMisses = new List<Opportunity>{
-            firstMiss,
-            secondMiss,
-            thirdMiss,
-            fourthMiss
-        };
+        System.assertEquals(m1.Id, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1 }, 1, today).Id);
+        System.assertEquals(m1.Id, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2 }, 2, today).Id);
+        System.assertEquals(m1.Id, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2, m3 }, 3, today).Id);
+
+        // A longer streak must not trigger a shorter reminder
+        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2 }, 1, today));
+        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2, m3 }, 2, today));
         for (Integer reminderNumber : new List<Integer>{ 1, 2, 3 }) {
-            System.assertEquals(
-                null,
-                SendEmailNotificationBatch.getReminderOpportunity(
-                    fourMisses,
-                    reminderNumber,
-                    Date.today()
-                ),
-                'Four misses must not send REMINDER_' + reminderNumber
-            );
+            System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2, m3, m4 }, reminderNumber, today));
         }
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{
-                    new Opportunity(
-                        StageName = 'Closed Won',
-                        CloseDate = firstMissedDate
-                    ),
-                    firstMiss
-                },
-                1,
-                Date.today()
-            )
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss },
-                1,
-                Date.today().addMonths(1)
-            ),
-            'Reminder must run in the calendar month after the missed payment'
-        );
-        Opportunity gapInPayments = new Opportunity(
-            Id = Id.valueOf('006000000000015'),
-            StageName = 'Missed',
-            CloseDate = Date.today().addMonths(-3)
-        );
-        System.assertEquals(
-            null,
-            SendEmailNotificationBatch.getReminderOpportunity(
-                new List<Opportunity>{ firstMiss, gapInPayments },
-                2,
-                Date.today()
-            ),
-            'REMINDER_2 requires misses in each of the previous two months'
-        );
+
+        // Last month not missed, or a gap in the streak
+        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m2 }, 1, today));
+        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m3 }, 2, today));
+        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2 }, 3, today));
+
+        // Reminder runs in the calendar month after the missed payment
+        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1 }, 1, today.addMonths(1)));
     }
 
     //SFESWCSD-85 case 5

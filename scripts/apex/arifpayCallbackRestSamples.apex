@@ -16,14 +16,13 @@ String successBody = JSON.serialize(new Map<String, Object>{
     'paymentStatus'   => 'SUCCESS',
     'amount'          => 50.00,
     'transactionDate' => '2026-08-27T12:10:00.000Z',
-    'referenceId'     => 'ARIFPAY-SUCCESS-ATTEMPT-000',
-    'paymentMethod'   => 'Credit Card',
-    'cardHolder'      => 'John Doe',
-    'creditCardType'  => 'Visa',
-    'cardLast4Digits' => '1111',
-    'cardExpiryMonth' => 12,
-    'cardExpiryYear'  => 2028,
-    'currencyEN'      => 'USD'
+    'transactionId'    => 'ARIFPAY-SUCCESS-ATTEMPT-000',
+    'paymentMethod'    => 'Credit Card',
+    'creditCardHolder' => 'John Doe',
+    'creditCardType'   => 'Visa',
+    'creditCardNumber' => '1111',
+    'creditCardExpiry' => '1228',
+    'currencyEN'       => 'USD'
 });
 
 String failureBody = JSON.serialize(new Map<String, Object>{
@@ -32,14 +31,13 @@ String failureBody = JSON.serialize(new Map<String, Object>{
     'paymentStatus'   => 'FAILURE',
     'amount'          => 50.00,
     'transactionDate' => '2026-08-27T12:00:00.000Z',
-    'referenceId'     => 'ARIFPAY-FAILURE-ATTEMPT-001',
-    'paymentMethod'   => 'Credit Card',
-    'cardHolder'      => 'Jane Doe',
-    'creditCardType'  => 'Visa',
-    'cardLast4Digits' => '4242',
-    'cardExpiryMonth' => 12,
-    'cardExpiryYear'  => 2028,
-    'currencyEN'      => 'USD'
+    'transactionId'    => 'ARIFPAY-FAILURE-ATTEMPT-001',
+    'paymentMethod'    => 'Credit Card',
+    'creditCardHolder' => 'Jane Doe',
+    'creditCardType'   => 'Visa',
+    'creditCardNumber' => '4242',
+    'creditCardExpiry' => '1228',
+    'currencyEN'       => 'USD'
 });
 
 // Payload for the log-only sub-paths (success/cancel/notify/error). Any JSON is accepted;

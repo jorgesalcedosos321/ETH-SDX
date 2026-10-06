@@ -4,12 +4,11 @@
     "paymentStatus": "SUCCESS",
     "amount": 50.00,
     "transactionDate": "2026-08-27T12:10:00.000Z",
-    "referenceId": "ARIFPAY-SUCCESS-ATTEMPT-000",
+    "transactionId": "ARIFPAY-SUCCESS-ATTEMPT-000",
     "paymentMethod": "Credit Card",
-    "cardHolder": "John Doe",
+    "creditCardHolder": "John Doe",
     "creditCardType": "Visa",
-    "cardLast4Digits": "1111",
-    "cardExpiryMonth": 12,
-    "cardExpiryYear": 2028,
+    "creditCardNumber": "1111",
+    "creditCardExpiry": "1228",
     "currencyEN": "USD"
 }

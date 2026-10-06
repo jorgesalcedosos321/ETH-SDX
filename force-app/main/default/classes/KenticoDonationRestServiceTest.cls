@@ -36,7 +36,7 @@ private class KenticoDonationRestServiceTest {
         request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
         invokeOneOff(request);
 
-        Account donor = [SELECT Id, Email__c, Phone FROM Account WHERE Name = :request.accountName LIMIT 1];
+        Account donor = [SELECT Id, Email__c, Phone FROM Account WHERE Name = :request.companyName LIMIT 1];
         Contact primaryContact = corporatePrimaryContact(request, donor.Id);
         Opportunity donation = donationFromResponse();
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
@@ -63,7 +63,7 @@ private class KenticoDonationRestServiceTest {
         request.paymentType = ApiConstants.PAYMENT_RECURRING;
         request.frequency = ApiConstants.FREQUENCY_MONTHLY;
         request.dateEstablished = Date.today();
-        request.recurringUUID = 'REST-MONTHLY-RECURRING-INDIVIDUAL';
+        request.donationGuid = 'REST-MONTHLY-RECURRING-INDIVIDUAL';
 
         invokeOneOff(request);
 
@@ -76,7 +76,7 @@ private class KenticoDonationRestServiceTest {
         ];
 
         Assert.areEqual(
-            request.recurringUUID,
+            request.donationGuid,
             generatedOpportunity.npe03__Recurring_Donation__r.Donation_Id__c
         );
         Assert.areEqual(
@@ -102,7 +102,7 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(ApiConstants.DONOR_INDIVIDUAL, recurringDonation.Donor_Type__c);
         Assert.areEqual('020-502-0001', recurringDonation.Sponsorship_ID__c);
 
-        request.recurringUUID = request.recurringUUID + '-SECOND';
+        request.donationGuid = request.donationGuid + '-SECOND';
         npe03__Recurring_Donation__c secondSponsorship =
             RecurringDonationService.createSponsorship(request, donor.Id);
         Assert.areEqual('020-502-0002', secondSponsorship.Sponsorship_ID__c);
@@ -115,7 +115,7 @@ private class KenticoDonationRestServiceTest {
         invokeSponsorship(request);
 
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
-        Account donor = [SELECT Id FROM Account WHERE Name = :request.accountName LIMIT 1];
+        Account donor = [SELECT Id FROM Account WHERE Name = :request.companyName LIMIT 1];
         Contact primaryContact = corporatePrimaryContact(request, donor.Id);
         npe03__Recurring_Donation__c recurringDonation = recurringDonationFromResponse();
         Opportunity donation = donationFromResponse();
@@ -134,7 +134,7 @@ private class KenticoDonationRestServiceTest {
         request.donationType = ApiConstants.DONATION_ONE_OFF;
         request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
         request.donationId = 'REST-DONATION-CORPORATE-INVALID-PICKLISTS';
-        request.accountName = 'REST Corporate Invalid Picklists';
+        request.companyName = 'REST Corporate Invalid Picklists';
         request.email = 'invalid-picklists@example.com';
         request.gender = 'Not a configured gender';
         request.source = 'Not a configured source';
@@ -183,7 +183,7 @@ private class KenticoDonationRestServiceTest {
         DonationRequest sponsorRequest = sponsorshipRequest(
             ApiConstants.DONOR_CORPORATE
         );
-        sponsorRequest.accountName = null;
+        sponsorRequest.companyName = null;
         invokeSponsorship(sponsorRequest);
         Assert.areEqual(400, RestContext.response.statusCode);
     }
@@ -201,10 +201,10 @@ private class KenticoDonationRestServiceTest {
 
     private static DonationRequest baseRequest(String donorType) {
         DonationRequest request = new DonationRequest();
-        request.transactionType = 'Donation';
+        request.formType = 'Donation';
         request.donorType = donorType;
         request.donationId = 'REST-DONATION-' + donorType;
-        request.donationAmount = 100;
+        request.amount = 100;
         request.firstName = 'REST';
         request.lastName = 'Donor';
         request.salutation = 'Ms.';
@@ -212,12 +212,12 @@ private class KenticoDonationRestServiceTest {
         request.phone = donorType == ApiConstants.DONOR_CORPORATE ? '5551002000' : '5551001000';
         request.birthday = Date.newInstance(1990, 1, 15);
         request.gender = 'Female';
-        request.accountName = 'REST Corporate Donor';
+        request.companyName = 'REST Corporate Donor';
         request.city = 'Lima';
         request.country = 'Peru';
-        request.mailingStreet = '123 Test Street';
-        request.mailingState = 'Lima';
-        request.mailingPostalCode = '15001';
+        request.addressLine1 = '123 Test Street';
+        request.region = 'Lima';
+        request.zip = '15001';
         request.personalDataConsent = true;
         request.childDataSafeguarding = false;
         request.emailOptOut = false;
@@ -233,12 +233,12 @@ private class KenticoDonationRestServiceTest {
         request.paymentType = ApiConstants.PAYMENT_RECURRING;
         request.frequency = ApiConstants.PERIOD_MONTHLY;
         request.dateEstablished = Date.today();
-        request.recurringUUID = 'REST-RECURRING-' + donorType;
+        request.donationGuid = 'REST-RECURRING-' + donorType;
         request.sponsorshipType = ApiConstants.SPONSOR_CHILD;
         request.sponsorshipCategory = 'Education';
         request.villageSelection = 'Addis Ababa';
         request.age = '8 - 11 yrs';
-        request.sponsorshipPreference = 'No Preference';
+        request.preference = 'No Preference';
         request.sponsorshipId = 'REST-SPONSORSHIP-' + donorType;
         request.childDataSafeguarding = true;
         return request;
@@ -279,19 +279,20 @@ private class KenticoDonationRestServiceTest {
     private static void invokeArifPayCallback(DonationRequest donationRequest) {
         ArifPayCallbackRequest callback = new ArifPayCallbackRequest();
         callback.donationId = donationRequest.donationId;
-        callback.recurringUUID = donationRequest.recurringUUID;
+        callback.recurringUUID = donationRequest.donationGuid;
         callback.paymentStatus = 'SUCCESS';
-        callback.amount = donationRequest.donationAmount;
+        callback.amount = donationRequest.amount;
         callback.transactionDate = Date.today();
-        callback.referenceId = 'ARIFPAY-' + donationRequest.donorType;
+        callback.transactionId = 'ARIFPAY-' + donationRequest.donorType;
         callback.paymentMethod = donationRequest.paymentMethod;
-        callback.cardHolder = donationRequest.donorType == ApiConstants.DONOR_CORPORATE
-            ? donationRequest.accountName
+        callback.creditCardHolder = donationRequest.donorType == ApiConstants.DONOR_CORPORATE
+            ? donationRequest.companyName
             : donationRequest.firstName + ' ' + donationRequest.lastName;
         callback.creditCardType = 'Visa';
-        callback.cardLast4Digits = '4242';
-        callback.cardExpiryMonth = 12;
-        callback.cardExpiryYear = 2028;
+        callback.CreditCardNumber = '4242';
+        callback.creditCardExpiry = '1228';
+        //callback.cardExpiryMonth = 12;
+        //callback.cardExpiryYear = 2028;
         callback.currencyEN = 'USD';
 
         RestRequest restRequest = new RestRequest();
@@ -356,11 +357,11 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(request.birthday, primaryContact.Birthdate);
         Assert.areEqual(request.gender, primaryContact.Gender__c);
         Assert.areEqual(request.source, primaryContact.Source__c);
-        Assert.areEqual(request.mailingStreet, primaryContact.MailingStreet);
+        Assert.areEqual(request.addressLine1, primaryContact.MailingStreet);
         Assert.areEqual(request.city, primaryContact.MailingCity);
-        Assert.areEqual(request.mailingState, primaryContact.MailingState);
+        Assert.areEqual(request.region, primaryContact.MailingState);
         Assert.areEqual(
-            request.mailingPostalCode,
+            request.zip,
             primaryContact.MailingPostalCode
         );
         Assert.areEqual(request.country, primaryContact.MailingCountry);

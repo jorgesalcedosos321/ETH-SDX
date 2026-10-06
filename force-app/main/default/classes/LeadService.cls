@@ -46,7 +46,7 @@ public with sharing class LeadService {
         lead.Phone = request.phone;
         lead.Birthdate__c = request.birthday;
 
-        lead.Mailing__Street__s = request.mailingStreet;
+        lead.Mailing__Street__s = request.addressLine1;
         lead.Mailing__City__s = request.city;
         //lead.Mailing__Country__s = request.mailingCountry;
 

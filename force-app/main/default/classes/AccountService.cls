@@ -30,7 +30,7 @@ public inherited sharing class AccountService {
 
         Account account = new Account();
 
-        account.Name = request.accountName;
+        account.Name = request.companyName;
         account.Email__c = request.email;
         account.Phone = request.phone;
 
@@ -46,7 +46,7 @@ public inherited sharing class AccountService {
             accounts = [
                 SELECT Id, Name, Email__c, Phone
                 FROM Account
-                WHERE Name = :request.accountName
+                WHERE Name = :request.companyName
                     AND (Email__c = :request.email OR Phone = :request.phone)
                 LIMIT 1
             ];
@@ -54,7 +54,7 @@ public inherited sharing class AccountService {
             accounts = [
                 SELECT Id, Name, Email__c, Phone
                 FROM Account
-                WHERE Name = :request.accountName
+                WHERE Name = :request.companyName
                     AND Email__c = :request.email
                 LIMIT 1
             ];
@@ -62,7 +62,7 @@ public inherited sharing class AccountService {
             accounts = [
                 SELECT Id, Name, Email__c, Phone
                 FROM Account
-                WHERE Name = :request.accountName
+                WHERE Name = :request.companyName
                     AND Phone = :request.phone
                 LIMIT 1
             ];

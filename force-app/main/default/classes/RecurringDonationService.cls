@@ -152,7 +152,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         
         // Standard NPSP fields
         setRecurringDonor(recurringDonation, request, contactId);
-        recurringDonation.npe03__Amount__c = request.donationAmount;
+        recurringDonation.npe03__Amount__c = request.amount;
         recurringDonation.npe03__Open_Ended_Status__c = 'Open';
         
         if (request.dateEstablished != null) {
@@ -176,7 +176,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
         
         // Custom integration fields
-        recurringDonation.Donation_Id__c = request.recurringUUID;
+        recurringDonation.Donation_Id__c = request.donationGuid;
         //TO CONTACT
         //recurringDonation.Source__c = request.source; 
         
@@ -187,7 +187,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             String.isNotBlank(request.villageSelection) && request.villageSelection.equalsIgnoreCase('Mekelle')
                 ? 'Makalle'
                 : request.villageSelection;
-        recurringDonation.Sponsorship_Preference__c = request.sponsorshipPreference;        
+        recurringDonation.Sponsorship_Preference__c = request.preference;        
         recurringDonation.Sponsorship_Age_Preference__c = request.age;
         recurringDonation.Sponsorship_ID__c = generateSponsorshipId(
             request,
@@ -233,7 +233,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             new npe03__Recurring_Donation__c();
 
         setRecurringDonor(rd, request, contactId);
-        rd.npe03__Amount__c = request.donationAmount;
+        rd.npe03__Amount__c = request.amount;
         rd.npe03__Open_Ended_Status__c = 'Open';
         rd.npe03__Installment_Period__c = request.frequency;
 
@@ -242,7 +242,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
 
         // Custom fields
-        rd.Donation_Id__c = request.recurringUUID;
+        rd.Donation_Id__c = request.donationGuid;
         rd.npsp__PaymentMethod__c = request.paymentMethod;
         rd.Payment_Type__c = request.paymentMethod;
         rd.Donation_Type__c = 'Recurring Donation';

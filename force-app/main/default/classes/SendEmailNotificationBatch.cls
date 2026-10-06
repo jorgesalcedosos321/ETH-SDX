@@ -247,41 +247,46 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
 
         Date dateToCheck = testStartDate != null ? testStartDate : Date.Today();
         Set<Id> recurringDonationIds = contactsByRecurringDonation.keySet();
-        Map<Id, List<Opportunity>> opportunitiesByRecurringDonation =
-            new Map<Id, List<Opportunity>>();
-        for (Opportunity opportunity : [
-            SELECT Id, StageName, CloseDate,
-                npe03__Recurring_Donation__c
-            FROM Opportunity
-            WHERE npe03__Recurring_Donation__c IN :recurringDonationIds
-            AND CloseDate <= :dateToCheck
-            ORDER BY npe03__Recurring_Donation__c, CloseDate DESC
+        // Missed payments are looked up by their scheduled date, from the
+        // 4th previous month (needed to rule out a longer streak) up to the
+        // end of the previous month.
+        Date currentMonthStart = dateToCheck.toStartOfMonth();
+        Date windowStart = currentMonthStart.addMonths(-4);
+        Map<Id, List<npe01__OppPayment__c>> paymentsByRecurringDonation =
+            new Map<Id, List<npe01__OppPayment__c>>();
+        for (npe01__OppPayment__c payment : [
+            SELECT Id, npe01__Opportunity__c, npe01__Scheduled_Date__c,
+                npe01__Opportunity__r.npe03__Recurring_Donation__c
+            FROM npe01__OppPayment__c
+            WHERE npe01__Opportunity__r.npe03__Recurring_Donation__c IN :recurringDonationIds
+            AND npe01__Opportunity__r.StageName IN ('Declined', 'Missed')
+            AND npe01__Scheduled_Date__c >= :windowStart
+            AND npe01__Scheduled_Date__c < :currentMonthStart
+            ORDER BY npe01__Scheduled_Date__c DESC
         ]) {
-            if (!opportunitiesByRecurringDonation.containsKey(
-                opportunity.npe03__Recurring_Donation__c
-            )) {
-                opportunitiesByRecurringDonation.put(
-                    opportunity.npe03__Recurring_Donation__c,
-                    new List<Opportunity>()
+            Id recurringDonationId =
+                payment.npe01__Opportunity__r.npe03__Recurring_Donation__c;
+            if (!paymentsByRecurringDonation.containsKey(recurringDonationId)) {
+                paymentsByRecurringDonation.put(
+                    recurringDonationId,
+                    new List<npe01__OppPayment__c>()
                 );
             }
-            opportunitiesByRecurringDonation.get(
-                opportunity.npe03__Recurring_Donation__c
-            ).add(opportunity);
+            paymentsByRecurringDonation.get(recurringDonationId).add(payment);
         }
-        System.debug('###opportunitiesByRecurringDonation: ' + opportunitiesByRecurringDonation);
+        System.debug('###paymentsByRecurringDonation: ' + paymentsByRecurringDonation);
 
         Map<Id, Id> targets = new Map<Id, Id>();
-        for (Id recurringDonationId : opportunitiesByRecurringDonation.keySet()) {
-            Opportunity latestMissedOpportunity = getReminderOpportunity(
-                opportunitiesByRecurringDonation.get(recurringDonationId),
+        for (Id recurringDonationId : paymentsByRecurringDonation.keySet()) {
+            npe01__OppPayment__c latestMissedPayment = getReminderPayment(
+                paymentsByRecurringDonation.get(recurringDonationId),
                 requiredMisses,
                 dateToCheck
             );
-            if (latestMissedOpportunity != null) {
+            if (latestMissedPayment != null) {
                 targets.put(
                     contactsByRecurringDonation.get(recurringDonationId),
-                    latestMissedOpportunity.Id
+                    latestMissedPayment.npe01__Opportunity__c
                 );
             }
         }
@@ -289,43 +294,38 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
     }
 
     @TestVisible
-    private static Opportunity getReminderOpportunity(
-        List<Opportunity> opportunities,
+    private static npe01__OppPayment__c getReminderPayment(
+        List<npe01__OppPayment__c> missedPayments,
         Integer requiredMisses,
         Date runDate
     ) {
-        Set<String> missedStages = new Set<String>{
-            'Declined',
-            'Missed'
-            //,'Closed Lost' //Commented by Marina excel 07092026
-        };
-        Integer consecutiveMisses = 0;
-        Opportunity latestMissedOpportunity;
-        for (Opportunity opportunity : opportunities) {
-            if (!missedStages.contains(opportunity.StageName)) {
-                break;
+        // Month of each missed payment's scheduled date -> payment
+        Map<Integer, npe01__OppPayment__c> paymentByMonth =
+            new Map<Integer, npe01__OppPayment__c>();
+        for (npe01__OppPayment__c payment : missedPayments) {
+            if (payment.npe01__Scheduled_Date__c == null) {
+                continue;
             }
-            Date expectedMissMonth = runDate.addMonths(
-                -(consecutiveMisses + 1)
-            );
-            System.debug('###expectedMissMonth: ' + expectedMissMonth);
-            System.debug('###opportunity.CloseDate: ' + opportunity.CloseDate);
-            System.debug('###opportunity.npe03__Recurring_Donation__c: ' + opportunity.npe03__Recurring_Donation__c);
-            if (
-                opportunity.CloseDate.year() != expectedMissMonth.year() ||
-                opportunity.CloseDate.month() != expectedMissMonth.month()
-            ) {
+            Integer monthKey = monthKey(payment.npe01__Scheduled_Date__c);
+            if (!paymentByMonth.containsKey(monthKey)) {
+                paymentByMonth.put(monthKey, payment);
+            }
+        }
+        // REMINDER_n: a miss in each of the n previous months (last month,
+        // the month before, ...) and none in the month before those.
+        for (Integer monthsBack = 1; monthsBack <= requiredMisses; monthsBack++) {
+            if (!paymentByMonth.containsKey(monthKey(runDate.addMonths(-monthsBack)))) {
                 return null;
             }
-            if (latestMissedOpportunity == null) {
-                latestMissedOpportunity = opportunity;
-            }
-            consecutiveMisses++;
         }
-        System.debug('###consecutiveMisses: ' + consecutiveMisses);
-        return consecutiveMisses == requiredMisses
-            ? latestMissedOpportunity
-            : null;
+        if (paymentByMonth.containsKey(monthKey(runDate.addMonths(-(requiredMisses + 1))))) {
+            return null;
+        }
+        return paymentByMonth.get(monthKey(runDate.addMonths(-1)));
+    }
+
+    private static Integer monthKey(Date value) {
+        return value.year() * 12 + value.month();
     }
 
     //SFESWCSD-85 case 5
