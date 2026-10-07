@@ -8,10 +8,12 @@
         <members>ContactService</members>
         <members>DonationRequest</members>
         <members>KenticoDonationRestServiceTest</members>
+        <members>LeadHandlerTest</members>
         <members>LeadService</members>
         <members>OpportunityService</members>
         <members>PaymentTriggerService</members>
         <members>RecurringDonationService</members>
+        <members>SendEmailNotificationBatchTest</members>
         <members>ValidationService</members>
         <members>ValidationServiceTest</members>
         <name>ApexClass</name>

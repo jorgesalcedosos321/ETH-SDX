@@ -25,13 +25,13 @@ public inherited sharing class CallbackService {
         Date transactionDate = request.transactionDate != NULL ? request.transactionDate : Date.today();
         Integer month = transactionDate.month(); //Integer.valueOf(request.month);
         
-        List<npe01__OppPayment__c> payments = [SELECT Id, npe01__Opportunity__c, npe01__Opportunity__r.npsp__Recurring_Donation_Installment_Number__c, npe01__Opportunity__r.npe03__Recurring_Donation__c, npe01__Scheduled_Date__c, Scheduled_Date_2nd_Attempt__c, Scheduled_Date_3rd_Attempt__c, Failed_Payment_Attempts__c, npe01__Paid__c, npe01__Written_Off__c, npe01__Payment_Amount__c, npe01__Payment_Date__c, npe01__Check_Reference_Number__c, Status__c
+        List<npe01__OppPayment__c> payments = [SELECT Id, npe01__Opportunity__c, npe01__Opportunity__r.npsp__Recurring_Donation_Installment_Number__c, npe01__Opportunity__r.npe03__Recurring_Donation__c, npe01__Scheduled_Date__c, Scheduled_Date_2nd_Attempt__c, Scheduled_Date_3rd_Attempt__c, Failed_Payment_Attempts__c, npe01__Paid__c, npe01__Written_Off__c, npe01__Payment_Amount__c, npe01__Payment_Date__c, npe01__Check_Reference_Number__c, Status__c, Failed_attempt_date__c
             FROM npe01__OppPayment__c
             WHERE npe01__Opportunity__r.npe03__Recurring_Donation__c = :recurringDonations[0].Id AND
                   ((CALENDAR_MONTH(npe01__Scheduled_Date__c) =: month AND CALENDAR_YEAR(npe01__Scheduled_Date__c) =: transactionDate.year() AND (Failed_Payment_Attempts__c = 0 OR Failed_Payment_Attempts__c = NULL)) OR
                    (CALENDAR_MONTH(Scheduled_Date_2nd_Attempt__c) =: month AND CALENDAR_YEAR(Scheduled_Date_2nd_Attempt__c) =: transactionDate.year() AND Failed_Payment_Attempts__c = 1) OR //SFEUCMSD-2197
                    (CALENDAR_MONTH(Scheduled_Date_3rd_Attempt__c) =: month AND CALENDAR_YEAR(Scheduled_Date_3rd_Attempt__c) =: transactionDate.year() AND Failed_Payment_Attempts__c = 2)) AND //SFEUCMSD-2197
-                   npe01__Written_Off__c = false AND npe01__Paid__c = false
+                   (npe01__Written_Off__c = false OR Failed_Payment_Attempts__c IN (1, 2)) AND npe01__Paid__c = false //SFESWCSD-92: NPSP writes the payment off once the failure declines the Opportunity, retries must still match
             ORDER BY npe01__Scheduled_Date__c];
 
         if (!payments.isEmpty()) {
@@ -96,13 +96,28 @@ public inherited sharing class CallbackService {
             if (isPaid) {
                 currentPayment.npe01__Paid__c = true;
             }
-            if (isFailure) {
+            //SFESWCSD-92: keep the payment open for the 2nd/3rd retry; only the 3rd failure writes it off
+            if (isFailure && currentPayment.Failed_Payment_Attempts__c != null && currentPayment.Failed_Payment_Attempts__c >= 3) {
                 currentPayment.npe01__Written_Off__c = true;
             }
 
-            currentPayment.npe01__Payment_Date__c = request.transactionDate;
+            //SFESWCSD-92: a payment date on a failed payment makes the Payment trigger flip Failed -> Paid -> Pending
+            if (isPaid) {
+                currentPayment.npe01__Payment_Date__c = request.transactionDate;
+            }
             currentPayment.npe01__Check_Reference_Number__c = request.transactionId;
-            UPDATE currentPayment;
+            //SFESWCSD-92: update only the changed fields; saving the queried record also sends
+            //npe01__Opportunity__c/__r, which the payment rejects as inaccessible
+            UPDATE new npe01__OppPayment__c(
+                Id = currentPayment.Id,
+                Status__c = currentPayment.Status__c,
+                npe01__Paid__c = currentPayment.npe01__Paid__c,
+                npe01__Written_Off__c = currentPayment.npe01__Written_Off__c,
+                npe01__Payment_Date__c = currentPayment.npe01__Payment_Date__c,
+                npe01__Check_Reference_Number__c = currentPayment.npe01__Check_Reference_Number__c,
+                Failed_Payment_Attempts__c = currentPayment.Failed_Payment_Attempts__c,
+                Failed_attempt_date__c = currentPayment.Failed_attempt_date__c
+            );
         }
 
         ArifPayCallbackResponse response =

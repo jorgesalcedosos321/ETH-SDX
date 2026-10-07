@@ -667,14 +667,21 @@ public class OpportunityService implements IOpportunityService {
 
         // Contact details are queried here once and reused by buildDonorCallTasks (SFESWCSD-91)
         Map<Id, npe03__Recurring_Donation__c> rdById = new Map<Id, npe03__Recurring_Donation__c>([
-            SELECT Id, npe03__Contact__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName,
+            SELECT Id, npe03__Contact__c, npe03__Organization__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName,
                 npe03__Contact__r.Phone, npe03__Contact__r.Email
             FROM npe03__Recurring_Donation__c
             WHERE Id IN :rdIdsToCheck.keySet()
         ]);
+        //SFESWCSD-92: corporate RDs have no Contact, so fall back to the Account; a null recipient
+        //key made DLE_EmailDispatchService throw and rolled back the Closed Won update
         Map<Id, Id> contactIdByRdId = new Map<Id, Id>();
         for (npe03__Recurring_Donation__c rdToCheck : rdById.values()) {
-            contactIdByRdId.put(rdToCheck.Id, rdToCheck.npe03__Contact__c);
+            Id recipientId = rdToCheck.npe03__Contact__c != NULL
+                ? rdToCheck.npe03__Contact__c
+                : rdToCheck.npe03__Organization__c;
+            if (recipientId != NULL) {
+                contactIdByRdId.put(rdToCheck.Id, recipientId);
+            }
         }
 
         List<Opportunity> rdPayments = queryPaymentsByRdIds(rdIdsToCheck.keySet());
@@ -700,6 +707,7 @@ public class OpportunityService implements IOpportunityService {
 
             //SFESWCSD-91
             if (String.isNotBlank(templateKey) &&
+                contactIdByRdId.containsKey(rdId) &&
                 !alreadySentMilestones.contains(templateKey + '|' + String.valueOf(rdId))) {
                 // Loyalty call task only the first time the 6-payment email is due
                 if (consecutivePayments == 6) {

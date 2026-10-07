@@ -3,7 +3,7 @@
     "recurringUUID": "RECURRING-SPONSORSHIP-002",
     "paymentStatus": "SUCCESS",
     "amount": 50.00,
-    "transactionDate": "2026-08-27T12:10:00.000Z",
+    "transactionDate": "2026-08-27",
     "transactionId": "ARIFPAY-SUCCESS-ATTEMPT-000",
     "paymentMethod": "Credit Card",
     "creditCardHolder": "John Doe",

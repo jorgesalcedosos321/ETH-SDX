@@ -24,6 +24,13 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
     }
     
+    //SFESWCSD-92: day of the establishment date, or today when none was sent
+    @TestVisible
+    private static String resolveDayOfMonth(DonationRequest request) {
+        Date baseDate = request.dateEstablished != null ? request.dateEstablished : Date.today();
+        return String.valueOf(baseDate.day());
+    }
+
     public static void cancelDonation(Set<Id> rdIds) {
         List<npe03__Recurring_Donation__c> rdsToCancel = [SELECT Donation_Id__c, npe03__Contact__r.FirstName, npe03__Contact__r.LastName, npe03__Contact__r.Email, npe03__Amount__c From npe03__Recurring_Donation__c WHERE Id IN : rdIds];
         
@@ -72,6 +79,7 @@ public class RecurringDonationService implements IRecurringDonationService {
                     null,
                     isCorporate ? account.Id : contact.Id
                 );
+            
             opportunity = getGeneratedOpportunity(recurringDonation.Id);
         } else {
             opportunity = OpportunityService.createDonation(
@@ -94,6 +102,12 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         if (recurringDonation != null) {
             response.recurringUUID = recurringDonation.Donation_Id__c;
+            
+            //Changing Notification URL for ArifPay Recurring Donation
+            changeRecurringDonationNotifyURL(
+                recurringDonation.Donation_Id__c,
+                URL.getOrgDomainUrl() + '/services/apexrest/arifpay/payments/notify'
+            );
         }
 
         return response;
@@ -137,6 +151,12 @@ public class RecurringDonationService implements IRecurringDonationService {
         response.donationId = String.valueOf(opportunity.Id);
         response.recurringUUID = recurringDonation.Donation_Id__c;
         
+        //Changing Notification URL for ArifPay Recurring Donation
+        changeRecurringDonationNotifyURL(
+            recurringDonation.Donation_Id__c,
+            URL.getOrgDomainUrl() + '/services/apexrest/arifpay/payments/notify'
+        );
+
         return response;
     }
     
@@ -159,7 +179,10 @@ public class RecurringDonationService implements IRecurringDonationService {
             recurringDonation.npe03__Date_Established__c =
                 request.dateEstablished;
         }
-        
+
+        //SFESWCSD-92: monthly RDs require Day of Month (validation rule)
+        recurringDonation.npsp__Day_of_Month__c = resolveDayOfMonth(request);
+
         if (!String.isBlank(request.frequency)) {
             recurringDonation.npe03__Installment_Period__c =
                 request.frequency;
@@ -240,6 +263,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         if (request.dateEstablished != null) {
             rd.npe03__Date_Established__c = request.dateEstablished;
         }
+        rd.npsp__Day_of_Month__c = resolveDayOfMonth(request);
 
         // Custom fields
         rd.Donation_Id__c = request.donationGuid;
@@ -373,6 +397,69 @@ public class RecurringDonationService implements IRecurringDonationService {
         }    
     }
 
+    //Changes to notify URL for recurring donation. This is a separate callout from the cancellation sequence, and can be called independently.
+    public static HttpResponse changeRecurringDonationNotifyURL(String sessionUuid, String notifyURL) {
+        if (String.isBlank(sessionUuid) || String.isBlank(notifyURL)) {
+            throw new IllegalArgumentException(
+                'Session UUID and notify URL are required.'
+            );
+        }
+
+        String encodedSessionUuid = EncodingUtil.urlEncode(
+            sessionUuid.trim(),
+            'UTF-8'
+        );
+        String encodedNotifyURL = EncodingUtil.urlEncode(
+            notifyURL.trim(),
+            'UTF-8'
+        );
+
+        HttpRequest request = new HttpRequest();
+        String baseUrl = ArifpayService.getEndpoint(); 
+        request.setEndpoint(
+            baseUrl + '/recuring/update/recurring/' +
+            encodedSessionUuid
+        );
+        
+        System.debug('###changeRecurringDonationNotifyURL 1:' + baseUrl + '/recuring/update/recurring/' + encodedSessionUuid);
+        Map<String, Object> body = new Map<String, Object>{'notify_url' => notifyURL};
+
+        System.debug('###changeRecurringDonationNotifyURL 2:' + ArifpayService.getMerchantApiKey());
+        request.setMethod('PUT');
+        request.setHeader('x-arifpay-key',ArifpayService.getMerchantApiKey());
+        request.setHeader('Content-Type', 'application/json');
+        request.setBody(JSON.serialize(body));
+        request.setTimeout(20000);
+        System.debug('###changeRecurringDonationNotifyURL 2a:' + JSON.serialize(body));
+
+        HttpResponse response = new Http().send(request);
+        Integer statusCode = response.getStatusCode();
+        String responseBody = response.getBody();
+        System.debug('###changeRecurringDonationNotifyURL 3 responseBody:' + responseBody);
+        System.debug('###changeRecurringDonationNotifyURL 3 statusCode:' + statusCode);
+
+        if (statusCode == 200 || statusCode == 202) {
+            List<Log__c> logs = new List<Log__c>{
+                Utils.logJsons(
+                    'Status code:' + statusCode + ' / response:' + responseBody + ' / request:' + request,
+                    'Log ArifPay Notify URL Change',
+                    false
+                )
+            };
+            Database.INSERT(logs, false);
+            return response;
+        } else { //if (statusCode == 400) {
+            Database.INSERT(Utils.logJsons(
+                    'Status code:' + statusCode + ' / response:' + responseBody + ' / request:' + request,
+                    'Log ArifPay Notify URL Change',
+                    true
+            ),false);
+            throw new CalloutException(
+                'ArifPay rejected the notify URL change for uuid:' + encodedSessionUuid
+            );
+        }
+    }    
+    
     //SFESWCSD-85 case 1
     public void sendSponsorshipWelcomeEmail(
         List<npe03__Recurring_Donation__c> newRecords

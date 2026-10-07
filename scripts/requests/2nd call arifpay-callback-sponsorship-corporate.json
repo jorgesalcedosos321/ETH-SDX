@@ -3,7 +3,7 @@
     "recurringUUID": "RECURRING-SPONSORSHIP-001",
     "paymentStatus": "SUCCESS",
     "amount": 50.00,
-    "transactionDate": "2026-08-26T12:00:00.000Z",
+    "transactionDate": "2026-08-26",
     "transactionId": "ARIFPAY-CORPORATE-SPONSORSHIP-PAYMENT-001",
     "paymentMethod": "Credit Card",
     "creditCardHolder": "Example Corporation",

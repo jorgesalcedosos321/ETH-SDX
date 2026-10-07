@@ -3,7 +3,7 @@
     "recurringUUID": "RECURRING-SPONSORSHIP-001",
     "paymentStatus": "FAILURE",
     "amount": 50.00,
-    "transactionDate": "2026-08-27T12:05:00.000Z",
+    "transactionDate": "2026-08-29",
     "transactionId": "ARIFPAY-FAILURE-ATTEMPT-002",
     "paymentMethod": "Credit Card",
     "creditCardHolder": "Jane Doe",

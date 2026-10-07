@@ -240,9 +240,11 @@ private class SendEmailNotificationBatchTest {
     //SFESWCSD-85 case 10
     private static npe01__OppPayment__c missedPayment(Integer idSuffix, Integer monthsBack) {
         String suffix = String.valueOf(idSuffix).leftPad(3, '0');
+        String paymentPrefix = npe01__OppPayment__c.SObjectType.getDescribe().getKeyPrefix();
+        String oppPrefix = Opportunity.SObjectType.getDescribe().getKeyPrefix();
         return new npe01__OppPayment__c(
-            Id = Id.valueOf('a05000000000' + suffix),
-            npe01__Opportunity__c = Id.valueOf('006000000000' + suffix),
+            Id = Id.valueOf(paymentPrefix + '000000000' + suffix),
+            npe01__Opportunity__c = Id.valueOf(oppPrefix + '000000000' + suffix),
             npe01__Scheduled_Date__c = Date.today().addMonths(-monthsBack)
         );
     }

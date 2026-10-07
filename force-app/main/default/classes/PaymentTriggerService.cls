@@ -160,7 +160,8 @@ public class PaymentTriggerService implements IPaymentTriggerService {
                     System.debug('checkPaidOption newRecord.status__c: enter condition');
                 	newRecord.npe01__Paid__c = false;
                     newRecord.npe01__Payment_Date__c = null;
-                    newRecord.npe01__Written_Off__c = true;
+                    //SFESWCSD-92: retries 1 and 2 stay open; no attempt count (legacy) or the 3rd failure writes off
+                    newRecord.npe01__Written_Off__c = newRecord.Failed_Payment_Attempts__c == null || newRecord.Failed_Payment_Attempts__c >= 3;
                     
                     System.debug('checkPaidOption newRecord.is_OneOff_Donation__c: ' + newRecord.is_OneOff_Donation__c);
                     if (newRecord.is_OneOff_Donation__c)
