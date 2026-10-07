@@ -104,10 +104,7 @@ public class RecurringDonationService implements IRecurringDonationService {
             response.recurringUUID = recurringDonation.Donation_Id__c;
             
             //Changing Notification URL for ArifPay Recurring Donation
-            changeRecurringDonationNotifyURL(
-                recurringDonation.Donation_Id__c,
-                URL.getOrgDomainUrl() + '/services/apexrest/arifpay/payments/notify'
-            );
+            enqueueNotifyUrlChange(recurringDonation.Donation_Id__c);
         }
 
         return response;
@@ -152,10 +149,7 @@ public class RecurringDonationService implements IRecurringDonationService {
         response.recurringUUID = recurringDonation.Donation_Id__c;
         
         //Changing Notification URL for ArifPay Recurring Donation
-        changeRecurringDonationNotifyURL(
-            recurringDonation.Donation_Id__c,
-            URL.getOrgDomainUrl() + '/services/apexrest/arifpay/payments/notify'
-        );
+        enqueueNotifyUrlChange(recurringDonation.Donation_Id__c);
 
         return response;
     }
@@ -395,6 +389,20 @@ public class RecurringDonationService implements IRecurringDonationService {
             
             UPDATE rdsFromContacts;
         }    
+    }
+
+    //SFESWCSD-92: callouts are not allowed after DML, so the notify URL change runs in a Queueable.
+    @TestVisible
+    private static void enqueueNotifyUrlChange(String sessionUuid) {
+        if (String.isBlank(sessionUuid)) {
+            return;
+        }
+        System.enqueueJob(
+            new ArifPayNotifyUrlQueueable(
+                sessionUuid,
+                URL.getOrgDomainUrl().toExternalForm() + '/services/apexrest/arifpay/payments/notify'
+            )
+        );
     }
 
     //Changes to notify URL for recurring donation. This is a separate callout from the cancellation sequence, and can be called independently.
