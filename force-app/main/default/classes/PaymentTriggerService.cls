@@ -173,17 +173,47 @@ public class PaymentTriggerService implements IPaymentTriggerService {
             System.debug('checkPaidOption oppFailedIds: ' + oppFailedIds);
         }        
 
+        //SFESWCSD-113
+        Map<String, Set<Id>> opportunityIdsByStatus = new Map<String, Set<Id>>();
         if (oppIds.size() > 0) {
-            Database.executeBatch(new UpdateOpportunityStatusesBatch(oppIds, 'Closed Won'));
+            //Database.executeBatch(new UpdateOpportunityStatusesBatch(oppIds, 'Closed Won'));
             //updateOpportunityStatus(oppIds, 'Closed Won');
+            opportunityIdsByStatus.put('Closed Won', oppIds);
         }
         if (oppFailedIds.size() > 0) {
-            Database.executeBatch(new UpdateOpportunityStatusesBatch(oppFailedIds, 'Declined'));
+            //Database.executeBatch(new UpdateOpportunityStatusesBatch(oppFailedIds, 'Declined'));
             //updateOpportunityStatus(oppFailedIds, 'Missed');
+            opportunityIdsByStatus.put('Declined', oppFailedIds);
         }
         if (oppClosedLostIds.size() > 0) {
-            Database.executeBatch(new UpdateOpportunityStatusesBatch(oppClosedLostIds, 'Closed Lost'));
-            //updateOpportunityStatus(oppFailedIds, 'Missed');
+            //Database.executeBatch(new UpdateOpportunityStatusesBatch(oppClosedLostIds, 'Closed Lost'));
+            //updateOpportunityStatus(oppClosedLostIds, 'Closed Lost');
+            opportunityIdsByStatus.put('Closed Lost', oppClosedLostIds);
+        }
+        scheduleOpportunityStatusUpdates(opportunityIdsByStatus, System.isBatch() || System.isFuture());
+    }
+
+    //SFESWCSD-113 Database.executeBatch cannot be called from a batch or future method, so a queueable job (or a direct update when no job can be queued) is used there
+    @TestVisible
+    private static void scheduleOpportunityStatusUpdates(Map<String, Set<Id>> opportunityIdsByStatus, Boolean isBatchOrFutureContext) {
+        if (opportunityIdsByStatus == null || opportunityIdsByStatus.isEmpty()) {
+            return;
+        }
+
+        if (!isBatchOrFutureContext) {
+            for (String status : opportunityIdsByStatus.keySet()) {
+                Database.executeBatch(new UpdateOpportunityStatusesBatch(opportunityIdsByStatus.get(status), status));
+            }
+            return;
+        }
+
+        if (Limits.getQueueableJobs() < Limits.getLimitQueueableJobs()) {
+            System.enqueueJob(new UpdateOpportunityStatusesQueueable(opportunityIdsByStatus));
+            return;
+        }
+
+        for (String status : opportunityIdsByStatus.keySet()) {
+            updateOpportunityStatus(opportunityIdsByStatus.get(status), status);
         }
     }
 

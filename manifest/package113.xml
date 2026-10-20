@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>IOpportunityService</members>
-        <members>OpportunityHandler_TDTM</members>
-        <members>OpportunityService</members>
-        <members>OpportunityTest</members>
-        <members>RecurringDonationTest</members>
-        <members>SendEmailNotificationBatch</members>
-        <members>SendEmailNotificationBatchTest</members>
+        <members>GenerateHistoricOppsBatch</members>
+        <members>GenerateHistoricOppsBatchTest</members>
+        <members>PaymentTriggerService</members>
+        <members>UpdateOpportunityStatusesQueueable</members>
+        <members>UpdateOpportunityStatusesQueueableTest</members>
         <name>ApexClass</name>
     </types>
     <version>67.0</version>
