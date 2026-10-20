@@ -535,6 +535,13 @@ public class RecurringDonationTest {
 
     
     //SFESWCSD-113
+    private static npe03__Recurring_Donation__c createHistoricRecurringDonation() {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        return createRecurringDonation(con.Id, null);
+    }
+
+    //SFESWCSD-113
     private static Integer countJobs(String className) {
         return [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = :className AND JobType IN ('BatchApex', 'Queueable')];
     }
@@ -542,6 +549,7 @@ public class RecurringDonationTest {
     //SFESWCSD-113
     @isTest
     static void generateHistoricOpportunities_establishedBeforeCurrentMonth_startsBatch() {
+        createHistoricRecurringDonation();
         List<npe03__Recurring_Donation__c> rds = [SELECT Id, npe03__Date_Established__c FROM npe03__Recurring_Donation__c];
         rds[0].npe03__Date_Established__c = Date.today().toStartOfMonth().addDays(-1);
         Integer batchJobsBefore = countJobs('GenerateHistoricOppsBatch');
@@ -556,6 +564,7 @@ public class RecurringDonationTest {
     //SFESWCSD-113
     @isTest
     static void generateHistoricOpportunities_establishedInCurrentMonth_doesNotStartBatch() {
+        createHistoricRecurringDonation();
         List<npe03__Recurring_Donation__c> rds = [SELECT Id, npe03__Date_Established__c FROM npe03__Recurring_Donation__c];
         for (npe03__Recurring_Donation__c rd : rds) {
             rd.npe03__Date_Established__c = Date.today().toStartOfMonth();
@@ -586,6 +595,7 @@ public class RecurringDonationTest {
     //SFESWCSD-113
     @isTest
     static void scheduleHistoricOpportunities_batchOrFutureContext_enqueuesQueueable() {
+        createHistoricRecurringDonation();
         Set<Id> rdIds = new Map<Id, npe03__Recurring_Donation__c>([SELECT Id FROM npe03__Recurring_Donation__c]).keySet();
         Integer queueableJobsBefore = countJobs('GenerateHistoricOppsQueueable');
 
@@ -599,6 +609,7 @@ public class RecurringDonationTest {
     //SFESWCSD-113
     @isTest
     static void scheduleHistoricOpportunities_queueableLimitReached_doesNotThrow() {
+        createHistoricRecurringDonation();
         Set<Id> rdIds = new Map<Id, npe03__Recurring_Donation__c>([SELECT Id FROM npe03__Recurring_Donation__c]).keySet();
 
         Test.startTest();

@@ -14,7 +14,7 @@
 public class OpportunityService implements IOpportunityService {
 
     //SFESWCSD-91 queue that owns the loyalty / welcome call Tasks
-    @TestVisible private static String DONOR_CALLS_QUEUE = 'Donations_Calls';
+    @TestVisible private static String DONOR_CALLS_QUEUE = 'Fundraisers_group';
 
     //SFESWCSD-91 former individual assignees of the loyalty / welcome call Tasks
     @TestVisible private static final String TASK_ASSIGNEE_YONAS_EMAIL = 'Yonas.Hailu@sos-ethiopia.org';
@@ -284,7 +284,8 @@ public class OpportunityService implements IOpportunityService {
         if (!targets.isEmpty()) {
             Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
                 Utils.ONE_TIME_DONORS_TH,
-                targets
+                targets,
+                Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
             );
             System.debug('###sendOneTimeDonorThankYouEmail: ' + accepted.size()
                 + ' of ' + targets.size() + ' emails accepted');
@@ -393,7 +394,8 @@ public class OpportunityService implements IOpportunityService {
 
         Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
             Utils.PAYMENT_CONFIRMATION,
-            targets
+            targets,
+            Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
         );
         System.debug(
             '###sendPaymentConfirmationEmail: ' + accepted.size() +
@@ -626,7 +628,8 @@ public class OpportunityService implements IOpportunityService {
             Map<Id, Id> targets = targetsByTemplate.get(templateKey);
             Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
                 templateKey,
-                targets
+                targets,
+                Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
             );
             System.debug(
                 '###sendSuccessfulPaymentMilestoneEmails ' + templateKey +

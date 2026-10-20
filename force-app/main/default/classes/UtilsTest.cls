@@ -318,4 +318,24 @@ public class UtilsTest {
         Test.stopTest();
         System.assertEquals(null, url); // Because no ContentDocument is linked
     }
+
+    //SFESWCSD-92 [[Name_For_Email]] token: Contact -> FirstName, Account -> Name
+    @isTest
+    static void buildsNameForEmailTokensForContactsAndAccounts() {
+        Account account = new Account(Name = 'Corporate Donor Ltd');
+        insert account;
+        Contact withFirstName = new Contact(FirstName = 'Abebe', LastName = 'Kebede', AccountId = account.Id);
+        Contact withoutFirstName = new Contact(LastName = 'Tesfaye', AccountId = account.Id);
+        insert new List<Contact>{ withFirstName, withoutFirstName };
+
+        Map<Id, Map<String, String>> tokens = Utils.buildNameForEmailTokens(
+            new Set<Id>{ account.Id, withFirstName.Id, withoutFirstName.Id }
+        );
+
+        System.assertEquals(3, tokens.size());
+        System.assertEquals('Abebe', tokens.get(withFirstName.Id).get(Utils.NAME_FOR_EMAIL_TOKEN));
+        System.assertEquals('Tesfaye', tokens.get(withoutFirstName.Id).get(Utils.NAME_FOR_EMAIL_TOKEN));
+        System.assertEquals('Corporate Donor Ltd', tokens.get(account.Id).get(Utils.NAME_FOR_EMAIL_TOKEN));
+        System.assert(Utils.buildNameForEmailTokens(null).isEmpty());
+    }
 }

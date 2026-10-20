@@ -238,43 +238,99 @@ private class SendEmailNotificationBatchTest {
     //SFESWCSD-85 case 8
     //SFESWCSD-85 case 9
     //SFESWCSD-85 case 10
-    private static npe01__OppPayment__c missedPayment(Integer idSuffix, Integer monthsBack) {
-        String suffix = String.valueOf(idSuffix).leftPad(3, '0');
-        String paymentPrefix = npe01__OppPayment__c.SObjectType.getDescribe().getKeyPrefix();
-        String oppPrefix = Opportunity.SObjectType.getDescribe().getKeyPrefix();
-        return new npe01__OppPayment__c(
-            Id = Id.valueOf(paymentPrefix + '000000000' + suffix),
-            npe01__Opportunity__c = Id.valueOf(oppPrefix + '000000000' + suffix),
-            npe01__Scheduled_Date__c = Date.today().addMonths(-monthsBack)
-        );
+    private static Set<Integer> missedMonths(List<Integer> monthsBack) {
+        Set<Integer> keys = new Set<Integer>();
+        for (Integer back : monthsBack) {
+            Date d = Date.today().addMonths(-back);
+            keys.add(d.year() * 12 + d.month());
+        }
+        return keys;
     }
 
     @isTest
-    static void evaluatesConsecutiveMissedPaymentReminders() {
-        npe01__OppPayment__c m1 = missedPayment(11, 1);
-        npe01__OppPayment__c m2 = missedPayment(12, 2);
-        npe01__OppPayment__c m3 = missedPayment(13, 3);
-        npe01__OppPayment__c m4 = missedPayment(14, 4);
+    static void evaluatesMissedMonthsForReminders() {
         Date today = Date.today();
 
-        System.assertEquals(m1.Id, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1 }, 1, today).Id);
-        System.assertEquals(m1.Id, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2 }, 2, today).Id);
-        System.assertEquals(m1.Id, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2, m3 }, 3, today).Id);
+        // The last N months missed and the month before those not -> REMINDER_N
+        System.assert(SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1 }), 1, today));
+        System.assert(SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 2 }), 2, today));
+        System.assert(SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 2, 3 }), 3, today));
 
-        // A longer streak must not trigger a shorter reminder
-        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2 }, 1, today));
-        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2, m3 }, 2, today));
+        // The highest count wins: no shorter reminder is due as well
+        System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 2 }), 1, today));
+        System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 2, 3 }), 2, today));
+        System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 2 }), 3, today));
+
+        // 4 missed months in a row: nothing is sent
         for (Integer reminderNumber : new List<Integer>{ 1, 2, 3 }) {
-            System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2, m3, m4 }, reminderNumber, today));
+            System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 2, 3, 4 }), reminderNumber, today));
         }
 
         // Last month not missed, or a gap in the streak
-        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m2 }, 1, today));
-        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m3 }, 2, today));
-        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1, m2 }, 3, today));
+        System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 2 }), 1, today));
+        System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 3 }), 2, today));
+    }
 
-        // Reminder runs in the calendar month after the missed payment
-        System.assertEquals(null, SendEmailNotificationBatch.getReminderPayment(new List<npe01__OppPayment__c>{ m1 }, 1, today.addMonths(1)));
+    //SFESWCSD-85 case 8
+    //SFESWCSD-85 case 9
+    //SFESWCSD-85 case 10
+    @isTest
+    static void sendsOneReminderPerRoundOfMissedOpportunities() {
+        Account account = [SELECT Id FROM Account LIMIT 1];
+        Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
+        npe03__Recurring_Donation__c recurringDonation = createSponsorship(contact.Id);
+        createRecurringOpportunity(account.Id, recurringDonation.Id, 'Missed', 1);
+        createRecurringOpportunity(account.Id, recurringDonation.Id, 'Declined', 2);
+        createRecurringOpportunity(account.Id, recurringDonation.Id, 'Closed Won', 3);
+        List<sObject> scope = new List<sObject>{
+            [SELECT Id, npe03__Contact__c FROM npe03__Recurring_Donation__c WHERE Id = :recurringDonation.Id]
+        };
+
+        // 2 missed in a row -> only REMINDER_2
+        System.assertEquals(
+            recurringDonation.Id,
+            SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_2, scope, null).get(contact.Id)
+        );
+        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_1, scope, null).isEmpty());
+        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_3, scope, null).isEmpty());
+
+        // Already sent for that recurring donation -> never sent again
+        insert new DLE_Email_Log__c(
+            Event_Key__c = Utils.REMINDER_2,
+            Recipient_Id__c = String.valueOf(contact.Id),
+            What_Id__c = String.valueOf(recurringDonation.Id),
+            Status__c = 'Sent'
+        );
+        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_2, scope, null).isEmpty());
+    }
+
+    private static Opportunity createRecurringOpportunity(
+        Id accountId,
+        Id recurringDonationId,
+        String stageName,
+        Integer monthsBack
+    ) {
+        Opportunity opportunity = new Opportunity(
+            Name = 'Sponsorship ' + stageName + ' ' + monthsBack,
+            AccountId = accountId,
+            npe03__Recurring_Donation__c = recurringDonationId,
+            StageName = stageName,
+            CloseDate = Date.today().addMonths(-monthsBack)
+        );
+        insert opportunity;
+        // The reminder rule orders by the payment's Scheduled Date
+        List<npe01__OppPayment__c> payments = [
+            SELECT Id FROM npe01__OppPayment__c WHERE npe01__Opportunity__c = :opportunity.Id
+        ];
+        if (payments.isEmpty()) {
+            payments.add(new npe01__OppPayment__c(
+                npe01__Opportunity__c = opportunity.Id,
+                npe01__Payment_Amount__c = 25
+            ));
+        }
+        payments[0].npe01__Scheduled_Date__c = opportunity.CloseDate;
+        upsert payments;
+        return opportunity;
     }
 
     //SFESWCSD-85 case 5

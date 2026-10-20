@@ -517,7 +517,8 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
             Utils.WELCOME_EMAIL_COMMUN,
-            targets
+            targets,
+            Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
         );
         System.debug(
             '###sendSponsorshipWelcomeEmail: ' + accepted.size() +
@@ -700,7 +701,8 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
         Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
             Utils.WELCOME_THE_NEW_DONO,
-            targets
+            targets,
+            Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
         );
         System.debug(
             '###sendFirstCommittedDonationWelcomeEmail result: ' + accepted.size() +
@@ -844,7 +846,8 @@ public class RecurringDonationService implements IRecurringDonationService {
             Map<Id, Id> targets = targetsByTemplate.get(templateKey);
             Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
                 templateKey,
-                targets
+                targets,
+                Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
             );
             System.debug(
                 '###sendSuccessfulPaymentMilestoneEmails ' + templateKey +
@@ -1080,7 +1083,8 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
             Utils.CANCELLATION_PROCESS,
-            targets
+            targets,
+            Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
         );
         System.debug(
             '###sendSponsorshipCancellationEmail: ' + accepted.size() +

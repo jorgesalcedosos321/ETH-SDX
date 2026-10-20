@@ -1,0 +1,322 @@
+﻿{
+  "status": 0,
+  "result": {
+    "records": [
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00XKB000001LaK72AK"
+        },
+        "Id": "00XKB000001LaK72AK",
+        "Name": "SUPPORT:  Self-Service New Comment Notification (SAMPLE)",
+        "DeveloperName": "SUPPORTSelfServiceNewCommentNotificationSAMPLE",
+        "FolderName": "Unfiled Public Classic Email Templates",
+        "TemplateType": "text",
+        "UiType": "Aloha",
+        "HtmlValue": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00XKB000001LaK82AK"
+        },
+        "Id": "00XKB000001LaK82AK",
+        "Name": "SUPPORT:  Self-Service Reset Password  (SAMPLE)",
+        "DeveloperName": "SUPPORTSelfServiceResetPasswordSAMPLE",
+        "FolderName": "Unfiled Public Classic Email Templates",
+        "TemplateType": "text",
+        "UiType": "Aloha",
+        "HtmlValue": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00XKB000001LaK92AK"
+        },
+        "Id": "00XKB000001LaK92AK",
+        "Name": "SUPPORT:  Self-Service New User Login Information (SAMPLE)",
+        "DeveloperName": "SUPPORTSelfServiceNewUserLoginInformationSAMPLE",
+        "FolderName": "Unfiled Public Classic Email Templates",
+        "TemplateType": "text",
+        "UiType": "Aloha",
+        "HtmlValue": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00XKB000001LaKA2A0"
+        },
+        "Id": "00XKB000001LaKA2A0",
+        "Name": "NPSP Opportunity Acknowledgment",
+        "DeveloperName": "NPSP_Opportunity_Acknowledgment",
+        "FolderName": "NPSP Email Templates",
+        "TemplateType": "html",
+        "UiType": "Aloha",
+        "HtmlValue": "<table height=\"400\" width=\"550\" cellpadding=\"5\" border=\"0\" cellspacing=\"5\" >\n<tr height=\"400\" valign=\"top\" >\n<td style=\" color:#000000; font-size:12pt; background-color:#FFFFFF; font-family:arial; bLabel:main; bEditID:r3st1;\" tEditID=\"c1r1\" locked=\"0\" aEditID=\"c1r1\" >\n<![CDATA[<font size=\"4\" face=\"Verdana, Helvetica, sans-serif\"><font><span style=\"background-color: rgb(255, 255, 255);\">Dear&nbsp;</span></font><span style=\"background-color: rgb(255, 255, 255);\">{!Account.npo02__Informal_Greeting__c},</span></font><div><font size=\"4\" face=\"Verdana, Helvetica, sans-serif\"><br></font></div><div><font size=\"4\" face=\"Verdana, Helvetica, sans-serif\">Thank you for your gift of&nbsp;<span style=\"background-color: rgb(255, 255, 255);\">{!Opportunity.Amount} on&nbsp;</span><span style=\"background-color: rgb(255, 255, 255);\">{!Opportunity.CloseDate}.&nbsp;</span></font></div><div><font size=\"4\" face=\"Verdana, Helvetica, sans-serif\"><br></font></div><div><font size=\"4\" face=\"Verdana, Helvetica, sans-serif\">We greatly appreciate your support!<br></font><div><font size=\"4\" face=\"Verdana, Helvetica, sans-serif\"><br></font></div></div><div><font size=\"4\" face=\"Verdana, Helvetica, sans-serif\">From all of us at&nbsp;{!Organization.Name}</font></div>]]></td>\n</tr>\n</table>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000U9vVEAS"
+        },
+        "Id": "00Xdu000000U9vVEAS",
+        "Name": "One Time Donors-Thank You Email",
+        "DeveloperName": "One_Time_Donors_Thank_You_Email_1780662722016",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear&nbsp;{{{Recipient.FirstName}}}<br />\n<br />\nThank you for your generous donation and for supporting SOS Children’s Villages in Ethiopia. Your kindness is helping children and families build a brighter future.<br />\n<br />\nWe would love to invite you to continue making a lasting impact by becoming a committed giver through our Sponsorship Program. Your ongoing support can change a child’s life for the long term.<br />\n<br />\nRegister here to become a sponsor: [Insert Web Form]<br />\n<br />\nThank you again for being part of this mission.<br />\n<br />\nWarm regards,</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000U9x8EAC"
+        },
+        "Id": "00Xdu000000U9x8EAC",
+        "Name": "Welcome Email Communication",
+        "DeveloperName": "Welcome_Email_Communication_1780664213505",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.FirstName}}},&nbsp;</p>\n\n<p>Thank you for registering as a [Child/Family/Program/Foster Care] Sponsor and for making your first contribution through [Credit Card/Payment Gateway/Mobile Payment].&nbsp;</p>\n\n<p>We are&nbsp;truly grateful&nbsp;to welcome you to the SOS Children’s Villages in Ethiopia family. Your support will help us continue providing care, protection, and opportunities for children and families in need.&nbsp;</p>\n\n<p>Our Sponsorship Team will send you your welcome package within the next 48 hours with more information about your sponsorship journey.&nbsp;</p>\n\n<p>Thank you for choosing to make a lasting difference.&nbsp;</p>\n\n<p>Warm regards,&nbsp;</p>\n\n<p>Beza Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000U9yjEAC"
+        },
+        "Id": "00Xdu000000U9yjEAC",
+        "Name": "One Time Donors-Learn More",
+        "DeveloperName": "One_Time_Donors_Learn_More_1780662870327",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.FirstName}}},<br />\n<br />\nThank you once again for your generous support to SOS Children’s Villages in Ethiopia. We would love to invite you to learn more about our work, programs, and the lives we reach through our publications,<br />\nincluding our Annual Report and inspiring Impact Stories.<br />\n<br />\nRead more here: [Insert Link]<br />\n<br />\nThank you for being part of our community.<br />\n<br />\nWarm regards,</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UA5BEAW"
+        },
+        "Id": "00Xdu000000UA5BEAW",
+        "Name": "Payment Confirmation",
+        "DeveloperName": "Payment_Confirmation_1780664726476",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p a91f7c1e-f94b-497c-8fba-513400fa2462126=\"140280953\">Dear&nbsp;{{{Recipient.FirstName}}},&nbsp;</p>\n\n<p a91f7c1e-f94b-497c-8fba-513400fa2462132=\"1671729634\">We are pleased to confirm that we have received your first contribution.&nbsp;</p>\n\n<p a91f7c1e-f94b-497c-8fba-513400fa2462138=\"1426857451\">Thank you for taking this meaningful step. Your support is already making a difference in a child’s life.&nbsp;</p>\n\n<p a91f7c1e-f94b-497c-8fba-513400fa2462144=\"2086163614\">We deeply appreciate your trust and partnership.&nbsp;</p>\n\n<p a91f7c1e-f94b-497c-8fba-513400fa2462150=\"1807883080\">Warm regards,&nbsp;</p>\n\n<p a91f7c1e-f94b-497c-8fba-513400fa2462156=\"1884664141\">Beza&nbsp;Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UA6nEAG"
+        },
+        "Id": "00Xdu000000UA6nEAG",
+        "Name": "Birthday Email",
+        "DeveloperName": "Birthday_Email_1780664911178",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear&nbsp;{{{Recipient.FirstName}}}</p>\n\n<p>Happy Birthday!&nbsp;&nbsp;</p>\n\n<p>On this special day, we want to celebrate your kindness, generosity, and the love you share with the child you support.&nbsp;You&nbsp;are truly making a difference, and&nbsp;we&nbsp;hope your day is full of joy and happiness.&nbsp;</p>\n\n<p>Wishing you a wonderful year ahead!&nbsp;</p>\n\n<p>Warmly,&nbsp;<br />\nBeza Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UAA1EAO"
+        },
+        "Id": "00Xdu000000UAA1EAO",
+        "Name": "Anniversary Email (1 Year Sponsorship Milestone)",
+        "DeveloperName": "Anniversary_Email_1_Year_Sponsorship_Milestone_1780665142312",
+        "FolderName": "SF Admin's Private Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear&nbsp;{{{Recipient.FirstName}}}&nbsp;</p>\n\n<p>Can you believe it&nbsp;has been&nbsp;a whole year&nbsp;since you started sponsoring a child? I want to personally congratulate you on this milestone.&nbsp;</p>\n\n<p>Your kindness and commitment have made such a real difference. Because of you, a child has felt cared for, safe, and&nbsp;supported&nbsp;and that is something truly extraordinary. I&nbsp;am so grateful to have you as part of our SOS family.&nbsp;</p>\n\n<p>With gratitude,&nbsp;<br />\nBeza Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UABdEAO"
+        },
+        "Id": "00Xdu000000UABdEAO",
+        "Name": "Mid-Year Report (PDF)",
+        "DeveloperName": "Mid_Year_Report_PDF_1780665543299",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.FirstName}}},&nbsp;</p>\n\n<p>I hope this message finds you well.&nbsp;</p>\n\n<p>It brings me&nbsp;great joy&nbsp;to share a mid-year update about the child you sponsor. Your support is building more than a future; it is creating joy in the present.&nbsp;</p>\n\n<p>Thank you for standing by our side.&nbsp;</p>\n\n<p>I hope you enjoy&nbsp;your reading!&nbsp;</p>\n\n<p>Best,&nbsp;</p>\n\n<p>Beza Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UCQLEA4"
+        },
+        "Id": "00Xdu000000UCQLEA4",
+        "Name": "End of Year Report (Year) PDF",
+        "DeveloperName": "End_of_Year_Report_Year_PDF_1780908057591",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p style=\"text-align: center;\"><img alt=\"0700044807 Yetnayet (1)\" class=\"\" src=\"https://soschildrensvillagesethiopia--ethdev.sandbox.file.force.com/file-asset-public/X0700044807_Yetnayet_1?oid=00DKF000000H0Gl\" style=\"max-width: 1577.95px; width: 523px; height: 348.953px;\" title=\"0700044807 Yetnayet (1)\" /></p>\n\n<p><br />\nDear&nbsp;{{{Recipient.FirstName}}}</p>\n\n<p>I am pleased to share an update on your child. In the attached report, you will find a one paragraph about your child, along with two stories that highlight the positive progress taking place in the community your child calls home. A recent photograph of your child is also included.&nbsp;</p>\n\n<p>I hope you enjoy reading the stories.&nbsp;</p>\n\n<p>Thank you sincerely for your continued generosity and support.&nbsp;</p>\n\n<p>Warm regards,&nbsp;</p>\n\n<p>Beza Teklu&nbsp;</p>\n\n\n\n<div id=\"\" style=\"left: 568.5px; top: 16px;\">&nbsp;</div>\n\n<div id=\"\" style=\"left: 568.5px; top: 16px;\">&nbsp;</div>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UCTZEA4"
+        },
+        "Id": "00Xdu000000UCTZEA4",
+        "Name": "Reminder 1 (1 month after missed payment)",
+        "DeveloperName": "Payment_Reminder_System_1780908481553",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear&nbsp;{{{Recipient.FirstName}}}</p>\n\n<p>I&nbsp;noticed your recent contribution may not have gone through.&nbsp;I&nbsp;understand that this can happen.&nbsp;</p>\n\n<p>Please let&nbsp;me&nbsp;know if you need any&nbsp;assistance.&nbsp;</p>\n\n<p>Warm regards&nbsp;</p>\n\n<p>Beza Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UCVBEA4"
+        },
+        "Id": "00Xdu000000UCVBEA4",
+        "Name": "Reminder 2 (2 month after missed payment)",
+        "DeveloperName": "Reminder_2_2_month_after_missed_payment_1780908626840",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e130=\"865017631\">Dear {{{Recipient.FirstName}}},&nbsp;</p>\n\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e136=\"346669537\">We have not yet received your recent contributions and wanted to gently follow up.&nbsp;</p>\n\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e142=\"1333760385\">Your support means so much, and&nbsp;I am&nbsp;here to&nbsp;assist&nbsp;if needed.&nbsp;</p>\n\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e152=\"269481217\">Warm regards,&nbsp;<br />\nBeza&nbsp;Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UCWnEAO"
+        },
+        "Id": "00Xdu000000UCWnEAO",
+        "Name": "Reminder 3 (3 month after missed payment)",
+        "DeveloperName": "Reminder_3_3_month_after_missed_payment_1780909009429",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e218=\"1867792182\">Dear {{{Recipient.FirstName}}},</p>\n\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e224=\"235536536\">As we have not received contributions for the past three months, your sponsorship may be at risk of temporary suspension.&nbsp;</p>\n\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e230=\"818246145\">Please contact us at your earliest convenience so&nbsp;I&nbsp;can support you.&nbsp;</p>\n\n<p c928cf22-ba7c-4627-a631-7f64c6fc644e240=\"565403479\">Warm regards,&nbsp;<br />\nBeza Teklu&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000UCYPEA4"
+        },
+        "Id": "00Xdu000000UCYPEA4",
+        "Name": "Cancellation Process",
+        "DeveloperName": "Cancellation_Process_1780909364172",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.FirstName}}}<br />\n<br />\nWe are very sorry to lose you as a sponsor, but of course, we respect your wish to end your commitment.&nbsp;<br />\n<br />\nWe herewith confirm the cancellation of your sponsorship with SOS Children’s Villages in Ethiopia. We would like to take this opportunity to thank you very much for your support.&nbsp;<br />\n<br />\nIf you have in any way been dissatisfied with your sponsorship or have comments on any aspect of our work, we would greatly appreciate it if you could let us know.&nbsp;<br />\n<br />\nWe wish you all the best in your future endeavours, and you are of course always welcome to join us in our efforts again.&nbsp;<br />\n<br />\nIf you wish to resume your sponsorship in the future, please use the following link: https://forms.office.com/r/n1ckjWfLkW&nbsp;<br />\n<br />\n &nbsp;<br />\nBest wishes,&nbsp;<br />\nBeza Teklu&nbsp;</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZbeREAS"
+        },
+        "Id": "00Xdu000000ZbeREAS",
+        "Name": "Thank you email after IV payment",
+        "DeveloperName": "Thank_you_email_after_IV_payment_1784118047007",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear&nbsp;{{{Recipient.FirstName}}},&nbsp;&nbsp;<br />\n<br />\nYour continued generosity inspires us.&nbsp;<br />\n<br />\nThank you for your fourth donation and for remaining committed to our mission. Your support enables us to continue working alongside children, young people and families to build brighter futures.&nbsp;<br />\n<br />\nWe are truly grateful for your partnership.&nbsp;<br />\n<br />\nWith sincere appreciation,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000Zcf7EAC"
+        },
+        "Id": "00Xdu000000Zcf7EAC",
+        "Name": "Welcome the new donor CG",
+        "DeveloperName": "Welcome_the_new_donor_CG_1784117758000",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.FirstName}}},<br />\n<br />\nThank you for becoming a valued supporter of SOS Children's Villages in Ethiopia.&nbsp;<br />\n<br />\nYour first donation has been received, and we are delighted to welcome you to our community of supporters. Your generosity helps children and young people without parental care or at risk of losing it receive the care, protection and support they need to become their strongest selves.&nbsp;<br />\n<br />\nWe are grateful to have you with us on this journey. Together, we can help create lasting change in the lives of children and families.&nbsp;<br />\n<br />\nThank you for your kindness and commitment.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\nSOS Children's Villages in Ethiopia&nbsp;</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZcjxEAC"
+        },
+        "Id": "00Xdu000000ZcjxEAC",
+        "Name": "Thank you email after the II payment",
+        "DeveloperName": "Thank_you_email_after_the_II_payment_1784117867408",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear&nbsp;{{{Recipient.FirstName}}},&nbsp;<br />\n<br />\nThank you for your continued generosity.&nbsp;<br />\n<br />\nYour second donation reflects your growing commitment to supporting children and young people. Because of supporters like you, we can continue providing tailored care and strengthening families to help children thrive.&nbsp;<br />\n<br />\nWe sincerely appreciate your trust and support.&nbsp;<br />\n<br />\nWith gratitude,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZclZEAS"
+        },
+        "Id": "00Xdu000000ZclZEAS",
+        "Name": "Thank you email after III payment",
+        "DeveloperName": "Thank_you_email_after_III_payment_1784117911898",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.FirstName}}},&nbsp;<br />\n<br />\nThank you for making your third donation.&nbsp;<br />\n<br />\nYour ongoing support means so much to us and to the children, young people and families we serve. Every contribution helps provide opportunities for children to grow up in a safe and caring environment.&nbsp;<br />\n<br />\nThank you for standing with us and making a lasting difference.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZcnBEAS"
+        },
+        "Id": "00Xdu000000ZcnBEAS",
+        "Name": "Thank you email after VI payment",
+        "DeveloperName": "Loyalty_call_after_6_donations_1784118102387",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.FirstName}}}<br />\n<br />\nToday we would like to celebrate your incredible commitment.&nbsp;<br />\n<br />\nThank you for making six successful donations. Your consistent support is helping children and young people receive the care, relationships and opportunities they need to build brighter futures.&nbsp;<br />\n<br />\nWe are honoured to have you as part of the SOS Children's Villages family and look forward to continuing this journey together.&nbsp;<br />\n<br />\nThank you for your compassion and generosity.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZconEAC"
+        },
+        "Id": "00Xdu000000ZconEAC",
+        "Name": "Thank you email after 12 payments",
+        "DeveloperName": "Thank_you_email_after_12_payments_1784118702352",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.FirstName}}},<br />\n<br />\nToday marks an important milestone.&nbsp;<br />\n<br />\nThank you for making twelve successful donations and for standing with children and young people throughout the past year. Your commitment has helped create lasting opportunities and hope for those who need it most.&nbsp;<br />\n<br />\nYour generosity makes a meaningful difference, and we are deeply grateful for your trust and partnership.&nbsp;<br />\n<br />\nThank you for being part of this journey.&nbsp;<br />\n<br />\nWith heartfelt appreciation,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia</p>\n</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000yRx4EAE"
+        },
+        "Id": "00Xdu000000yRx4EAE",
+        "Name": "Loyalty call after 6 payments ",
+        "DeveloperName": "Loyalty_call_after_6_payments_1788321763115",
+        "FolderName": "Public Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.FirstName}}}<br />\n<br />\nToday we would like to celebrate your incredible commitment.&nbsp;<br />\n<br />\nThank you for making six successful donations. Your consistent support is helping children and young people receive the care, relationships and opportunities they need to build brighter futures.&nbsp;<br />\n<br />\nWe are honoured to have you as part of the SOS Children's Villages family and look forward to continuing this journey together.&nbsp;<br />\n<br />\nThank you for your compassion and generosity.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>"
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000zO01EAE"
+        },
+        "Id": "00Xdu000000zO01EAE",
+        "Name": "Mid-Year Report (PDF) Copy",
+        "DeveloperName": "Mid_Year_Report_PDF_Copy_1788485541961",
+        "FolderName": "My Private Email Templates",
+        "TemplateType": "custom",
+        "UiType": "SFX",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.FirstName}}},&nbsp;</p>\n\n<p>I hope this message finds you well.&nbsp;</p>\n\n<p>It brings me&nbsp;great joy&nbsp;to share a mid-year update about the child you sponsor. Your support is building more than a future; it is creating joy in the present.&nbsp;</p>\n\n<p>Thank you for standing by our side.&nbsp;</p>\n\n<p>I hope you enjoy&nbsp;your reading!&nbsp;</p>\n\n<p>Best,&nbsp;</p>\n\n<p>Beza Teklu&nbsp;</p>\n</body>\n</html>"
+      }
+    ],
+    "totalSize": 24,
+    "done": true
+  },
+  "warnings": []
+}

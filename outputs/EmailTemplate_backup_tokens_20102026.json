@@ -1,0 +1,82 @@
+﻿{
+  "status": 0,
+  "result": {
+    "records": [
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZbeREAS"
+        },
+        "Id": "00Xdu000000ZbeREAS",
+        "Name": "Thank you email after IV payment",
+        "DeveloperName": "Thank_you_email_after_IV_payment_1784118047007",
+        "Subject": "Thank you for staying with us",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear&nbsp;{{{Recipient.Name_For_Email__c}}},&nbsp;&nbsp;<br />\n<br />\nYour continued generosity inspires us.&nbsp;<br />\n<br />\nThank you for your fourth donation and for remaining committed to our mission. Your support enables us to continue working alongside children, young people and families to build brighter futures.&nbsp;<br />\n<br />\nWe are truly grateful for your partnership.&nbsp;<br />\n<br />\nWith sincere appreciation,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>",
+        "Body": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000Zcf7EAC"
+        },
+        "Id": "00Xdu000000Zcf7EAC",
+        "Name": "Welcome the new donor CG",
+        "DeveloperName": "Welcome_the_new_donor_CG_1784117758000",
+        "Subject": "Welcome to the SOS Children's Villages family",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.Name_For_Email__c}}},<br />\n<br />\nThank you for becoming a valued supporter of SOS Children's Villages in Ethiopia.&nbsp;<br />\n<br />\nYour first donation has been received, and we are delighted to welcome you to our community of supporters. Your generosity helps children and young people without parental care or at risk of losing it receive the care, protection and support they need to become their strongest selves.&nbsp;<br />\n<br />\nWe are grateful to have you with us on this journey. Together, we can help create lasting change in the lives of children and families.&nbsp;<br />\n<br />\nThank you for your kindness and commitment.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\nSOS Children's Villages in Ethiopia&nbsp;</p>\n</body>\n</html>",
+        "Body": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZcjxEAC"
+        },
+        "Id": "00Xdu000000ZcjxEAC",
+        "Name": "Thank you email after the II payment",
+        "DeveloperName": "Thank_you_email_after_the_II_payment_1784117867408",
+        "Subject": "Thank you for your continued support",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear&nbsp;{{{Recipient.Name_For_Email__c}}},&nbsp;<br />\n<br />\nThank you for your continued generosity.&nbsp;<br />\n<br />\nYour second donation reflects your growing commitment to supporting children and young people. Because of supporters like you, we can continue providing tailored care and strengthening families to help children thrive.&nbsp;<br />\n<br />\nWe sincerely appreciate your trust and support.&nbsp;<br />\n<br />\nWith gratitude,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia</body>\n</html>",
+        "Body": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZclZEAS"
+        },
+        "Id": "00Xdu000000ZclZEAS",
+        "Name": "Thank you email after III payment",
+        "DeveloperName": "Thank_you_email_after_III_payment_1784117911898",
+        "Subject": "Your support is making a difference",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.Name_For_Email__c}}},&nbsp;<br />\n<br />\nThank you for making your third donation.&nbsp;<br />\n<br />\nYour ongoing support means so much to us and to the children, young people and families we serve. Every contribution helps provide opportunities for children to grow up in a safe and caring environment.&nbsp;<br />\n<br />\nThank you for standing with us and making a lasting difference.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>",
+        "Body": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZcnBEAS"
+        },
+        "Id": "00Xdu000000ZcnBEAS",
+        "Name": "Thank you email after VI payment",
+        "DeveloperName": "Loyalty_call_after_6_donations_1784118102387",
+        "Subject": "Six months of creating brighter futures together",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">Dear {{{Recipient.Name_For_Email__c}}}<br />\n<br />\nToday we would like to celebrate your incredible commitment.&nbsp;<br />\n<br />\nThank you for making six successful donations. Your consistent support is helping children and young people receive the care, relationships and opportunities they need to build brighter futures.&nbsp;<br />\n<br />\nWe are honoured to have you as part of the SOS Children's Villages family and look forward to continuing this journey together.&nbsp;<br />\n<br />\nThank you for your compassion and generosity.&nbsp;<br />\n<br />\nWarm regards,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia&nbsp;</body>\n</html>",
+        "Body": null
+      },
+      {
+        "attributes": {
+          "type": "EmailTemplate",
+          "url": "/services/data/v68.0/sobjects/EmailTemplate/00Xdu000000ZconEAC"
+        },
+        "Id": "00Xdu000000ZconEAC",
+        "Name": "Thank you email after 12 payments",
+        "DeveloperName": "Thank_you_email_after_12_payments_1784118702352",
+        "Subject": "One year of impact—thank you!",
+        "HtmlValue": "<html>\n<head>\n\t<title></title>\n</head>\n<body style=\"height: auto; min-height: auto;\">\n<p>Dear {{{Recipient.Name_For_Email__c}}},<br />\n<br />\nToday marks an important milestone.&nbsp;<br />\n<br />\nThank you for making twelve successful donations and for standing with children and young people throughout the past year. Your commitment has helped create lasting opportunities and hope for those who need it most.&nbsp;<br />\n<br />\nYour generosity makes a meaningful difference, and we are deeply grateful for your trust and partnership.&nbsp;<br />\n<br />\nThank you for being part of this journey.&nbsp;<br />\n<br />\nWith heartfelt appreciation,&nbsp;<br />\n<br />\nSOS Children's Villages in Ethiopia</p>\n</body>\n</html>",
+        "Body": null
+      }
+    ],
+    "totalSize": 6,
+    "done": true
+  },
+  "warnings": []
+}

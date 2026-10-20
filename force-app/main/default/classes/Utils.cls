@@ -33,6 +33,8 @@ public class Utils {
     public static final String THANK_YOU_EMAIL_AFTER_6 = 'THANK_YOU_EMAIL_AFTER_6';
     public static final String WELCOME_EMAIL_COMMUN = 'WELCOME_EMAIL_COMMUN';
     public static final String WELCOME_THE_NEW_DONO = 'WELCOME_THE_NEW_DONO';
+    // [[Name_For_Email]] placeholder in the DLE templates: Contact -> FirstName, Account -> Name
+    public static final String NAME_FOR_EMAIL_TOKEN = 'Name_For_Email';
     
     
     public static String lastDayOfMonth() {
@@ -748,5 +750,27 @@ public class Utils {
             }
         }
         return NULL;
+    }
+
+    //SFESWCSD-92 Account recipients cannot render {{{Recipient.*}}} merge fields, so the DLE
+    //templates greet through the [[Name_For_Email]] placeholder: Contact -> FirstName, Account -> Name
+    public static Map<Id, Map<String, String>> buildNameForEmailTokens(Set<Id> recipientIds) {
+        Map<Id, Map<String, String>> tokensByRecipient = new Map<Id, Map<String, String>>();
+        if (recipientIds == null || recipientIds.isEmpty()) {
+            return tokensByRecipient;
+        }
+        for (Contact contact : [
+            SELECT Id, FirstName, LastName FROM Contact WHERE Id IN :recipientIds
+        ]) {
+            tokensByRecipient.put(contact.Id, new Map<String, String>{
+                NAME_FOR_EMAIL_TOKEN => String.isNotBlank(contact.FirstName) ? contact.FirstName : contact.LastName
+            });
+        }
+        for (Account account : [SELECT Id, Name FROM Account WHERE Id IN :recipientIds]) {
+            tokensByRecipient.put(account.Id, new Map<String, String>{
+                NAME_FOR_EMAIL_TOKEN => account.Name
+            });
+        }
+        return tokensByRecipient;
     }
 }
