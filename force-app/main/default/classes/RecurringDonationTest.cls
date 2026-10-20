@@ -533,4 +533,82 @@ public class RecurringDonationTest {
         System.assertEquals(0, targets.size());
     }
 
+    
+    //SFESWCSD-113
+    private static Integer countJobs(String className) {
+        return [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = :className AND JobType IN ('BatchApex', 'Queueable')];
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void generateHistoricOpportunities_establishedBeforeCurrentMonth_startsBatch() {
+        List<npe03__Recurring_Donation__c> rds = [SELECT Id, npe03__Date_Established__c FROM npe03__Recurring_Donation__c];
+        rds[0].npe03__Date_Established__c = Date.today().toStartOfMonth().addDays(-1);
+        Integer batchJobsBefore = countJobs('GenerateHistoricOppsBatch');
+
+        Test.startTest();
+        new RecurringDonationService().generateHistoricOpportunities(rds);
+        Test.stopTest();
+
+        Assert.areEqual(batchJobsBefore + 1, countJobs('GenerateHistoricOppsBatch'), 'One batch job is started for the old recurring donations.');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void generateHistoricOpportunities_establishedInCurrentMonth_doesNotStartBatch() {
+        List<npe03__Recurring_Donation__c> rds = [SELECT Id, npe03__Date_Established__c FROM npe03__Recurring_Donation__c];
+        for (npe03__Recurring_Donation__c rd : rds) {
+            rd.npe03__Date_Established__c = Date.today().toStartOfMonth();
+        }
+        rds.add(new npe03__Recurring_Donation__c(Name = 'No date', npe03__Date_Established__c = null));
+        Integer batchJobsBefore = countJobs('GenerateHistoricOppsBatch');
+
+        Test.startTest();
+        new RecurringDonationService().generateHistoricOpportunities(rds);
+        Test.stopTest();
+
+        Assert.areEqual(batchJobsBefore, countJobs('GenerateHistoricOppsBatch'), 'Recurring donations of the current month or without date are skipped.');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void generateHistoricOpportunities_nullOrEmptyList_doesNothing() {
+        Integer batchJobsBefore = countJobs('GenerateHistoricOppsBatch');
+
+        Test.startTest();
+        new RecurringDonationService().generateHistoricOpportunities(null);
+        new RecurringDonationService().generateHistoricOpportunities(new List<npe03__Recurring_Donation__c>());
+        Test.stopTest();
+
+        Assert.areEqual(batchJobsBefore, countJobs('GenerateHistoricOppsBatch'), 'No job is started without recurring donations.');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void scheduleHistoricOpportunities_batchOrFutureContext_enqueuesQueueable() {
+        Set<Id> rdIds = new Map<Id, npe03__Recurring_Donation__c>([SELECT Id FROM npe03__Recurring_Donation__c]).keySet();
+        Integer queueableJobsBefore = countJobs('GenerateHistoricOppsQueueable');
+
+        Test.startTest();
+        RecurringDonationService.scheduleHistoricOpportunities(rdIds, true, RecurringDonationService.HISTORIC_OPPS_STAGE_NAME);
+        Test.stopTest();
+
+        Assert.areEqual(queueableJobsBefore + 1, countJobs('GenerateHistoricOppsQueueable'), 'A queueable is used where executeBatch is not allowed.');
+    }
+
+    //SFESWCSD-113
+    @isTest
+    static void scheduleHistoricOpportunities_queueableLimitReached_doesNotThrow() {
+        Set<Id> rdIds = new Map<Id, npe03__Recurring_Donation__c>([SELECT Id FROM npe03__Recurring_Donation__c]).keySet();
+
+        Test.startTest();
+        for (Integer i = 0; i < Limits.getLimitQueueableJobs(); i++) {
+            System.enqueueJob(new GenerateHistoricOppsQueueable(null));
+        }
+        RecurringDonationService.scheduleHistoricOpportunities(rdIds, true, RecurringDonationService.HISTORIC_OPPS_STAGE_NAME);
+        Integer queuedJobs = Limits.getQueueableJobs();
+        Test.stopTest();
+
+        Assert.areEqual(Limits.getLimitQueueableJobs(), queuedJobs, 'The limit is reached and no extra job is enqueued.');
+    }
 }

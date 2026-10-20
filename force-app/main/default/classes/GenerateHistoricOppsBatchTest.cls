@@ -212,6 +212,68 @@ private class GenerateHistoricOppsBatchTest { //SFESWCSD-113
         System.assertEquals('Closed Won', savedOpportunity.StageName);
     }
 
+    //SFESWCSD-113 Creates the historic opportunities of a recurring donation with the given batch and returns the ones created by the batch
+    private static List<Opportunity> generateHistoricOpportunities(String accountSuffix, GenerateHistoricOppsBatch batchToRun) {
+        Account account = createAccount(accountSuffix);
+        Date establishedDate = Date.newInstance(2026, 1, 15);
+        Date nextPaymentDate = Date.newInstance(2026, 3, 15);
+        Test.startTest();
+        npe03__Recurring_Donation__c recurringDonation = createRecurringDonation(account, establishedDate, nextPaymentDate, 50);
+        setRecurringDonationDates(recurringDonation, establishedDate, nextPaymentDate);
+        Opportunity source = replaceGeneratedOpportunitiesWithSource(recurringDonation, account, nextPaymentDate, 'Prospecting');
+        batchToRun.execute(null, new List<Id>{ recurringDonation.Id });
+        Test.stopTest();
+        return [
+                SELECT Id, StageName
+                FROM Opportunity
+                WHERE npe03__Recurring_Donation__c = :recurringDonation.Id AND Id != :source.Id
+        ];
+    }
+
+    //SFESWCSD-113
+    @IsTest
+    static void execute_withoutStageName_createsOpportunitiesAsPledged() {
+        List<Opportunity> created = generateHistoricOpportunities('920', new GenerateHistoricOppsBatch(null));
+
+        Assert.isFalse(created.isEmpty(), 'Historic opportunities are created for the months before the next payment.');
+        for (Opportunity opportunity : created) {
+            Assert.areEqual(GenerateHistoricOppsBatch.DEFAULT_STAGE_NAME, opportunity.StageName, 'The default stage is used.');
+        }
+        Assert.areEqual('Pledged', GenerateHistoricOppsBatch.DEFAULT_STAGE_NAME, 'The default stage is Pledged.');
+    }
+
+    //SFESWCSD-113
+    @IsTest
+    static void execute_withStageName_createsOpportunitiesWithThatStage() {
+        List<Opportunity> created = generateHistoricOpportunities('921', new GenerateHistoricOppsBatch(null, null, 'Prospecting'));
+
+        Assert.isFalse(created.isEmpty(), 'Historic opportunities are created for the months before the next payment.');
+        for (Opportunity opportunity : created) {
+            Assert.areEqual('Prospecting', opportunity.StageName, 'The sent stage is used.');
+        }
+    }
+
+    //SFESWCSD-113
+    @IsTest
+    static void execute_blankStageName_fallsBackToPledged() {
+        List<Opportunity> created = generateHistoricOpportunities('922', new GenerateHistoricOppsBatch(null, null, '  '));
+
+        Assert.isFalse(created.isEmpty(), 'Historic opportunities are created for the months before the next payment.');
+        for (Opportunity opportunity : created) {
+            Assert.areEqual('Pledged', opportunity.StageName, 'A blank stage falls back to Pledged.');
+        }
+    }
+
+    //SFESWCSD-113
+    @IsTest
+    static void run_withStageName_startsTheBatch() {
+        Test.startTest();
+        Id jobId = GenerateHistoricOppsBatch.run(new Set<Id>(), new Set<Id>(), 'Prospecting');
+        Test.stopTest();
+
+        Assert.areEqual('Completed', [SELECT Status FROM AsyncApexJob WHERE Id = :jobId].Status, 'The batch runs with the stage overload.');
+    }
+
     //SFESWCSD-113 NPSP resets the dates when the recurring donation is inserted, so they are set again afterwards
     private static void setRecurringDonationDates(
             npe03__Recurring_Donation__c recurringDonation,

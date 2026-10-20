@@ -20,6 +20,8 @@ global class RecurringDonationHandler_TDTM extends npsp.TDTM_Runnable{
             rds.createSponsorshipRegistrationTasks(newRecords);
             //SFESWCSD-91
             //rds.sendFirstCommittedDonationWelcomeEmail(newRecords, oldRecords);
+            //SFESWCSD-113
+            rds.generateHistoricOpportunities(newRecords);
         }
         else if (triggerAction == npsp.TDTM_Runnable.Action.AfterUpdate) {
             //SFESWCSD-91

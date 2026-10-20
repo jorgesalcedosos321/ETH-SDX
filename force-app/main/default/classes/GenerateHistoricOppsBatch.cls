@@ -8,21 +8,37 @@ global class GenerateHistoricOppsBatch implements Database.Batchable<SObject>, D
     //SFESWCSD-113 Number of recurring donations processed in every execution of the batch
     public static final Integer BATCH_SIZE = 10;
 
+    //SFESWCSD-113 Stage given to the new opportunities when no stage name is sent
+    public static final String DEFAULT_STAGE_NAME = 'Pledged';
+
     private Set<Id> recordIds;
     private Set<Id> webRecurringDonationIds;
+    //SFESWCSD-113
+    private String stageName;
 
     global GenerateHistoricOppsBatch(Set<Id> ids){
         this(ids, new Set<Id>());
     }
 
     global GenerateHistoricOppsBatch(Set<Id> ids, Set<Id> webIds){
+        this(ids, webIds, DEFAULT_STAGE_NAME);
+    }
+
+    //SFESWCSD-113 A blank stage name falls back to the default one
+    global GenerateHistoricOppsBatch(Set<Id> ids, Set<Id> webIds, String stageName){
         recordIds = ids == null ? new Set<Id>() : ids;
         webRecurringDonationIds = webIds == null ? new Set<Id>() : webIds;
+        this.stageName = String.isBlank(stageName) ? DEFAULT_STAGE_NAME : stageName;
     }
 
     //SFESWCSD-113 Runs the batch with the fixed number of recurring donations per round
     global static Id run(Set<Id> ids, Set<Id> webIds) {
-        return Database.executeBatch(new GenerateHistoricOppsBatch(ids, webIds), BATCH_SIZE);
+        return run(ids, webIds, DEFAULT_STAGE_NAME);
+    }
+
+    //SFESWCSD-113
+    global static Id run(Set<Id> ids, Set<Id> webIds, String stageName) {
+        return Database.executeBatch(new GenerateHistoricOppsBatch(ids, webIds, stageName), BATCH_SIZE);
     }
 
     //SFESWCSD-113 When no ids are sent every recurring donation is checked
@@ -93,7 +109,8 @@ global class GenerateHistoricOppsBatch implements Database.Batchable<SObject>, D
                 }
 
                 Opportunity opp = new Opportunity();
-                opp = oppsByRDMap.get(recordId).clone(false, false, false, false);                
+                opp = oppsByRDMap.get(recordId).clone(false, false, false, false);
+                opp.StageName = stageName; //SFESWCSD-113
                 opp.CloseDate = rdToCheck.npe03__Date_Established__c.addMonths(i); //oppsByRDMap.get(recordId).CloseDate.addMonths(i);
                 opp.CloseDate = Date.newInstance(opp.CloseDate.year(), opp.CloseDate.month(), dayOfMonth);
                 opp.Name = oppsByRDMap.get(recordId).Name.substringBefore(keyWord) + ' ' + keyWord + ' ' + Datetime.newInstance(opp.CloseDate.year(),opp.CloseDate.month(),opp.CloseDate.day()).format('yyyy-MM-dd');

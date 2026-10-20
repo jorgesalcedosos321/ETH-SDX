@@ -12,6 +12,8 @@
 **/
 
 public interface IRecurringDonationService {
+    //SFESWCSD-113
+    void generateHistoricOpportunities(List<npe03__Recurring_Donation__c> newRecords);
     void defaultMonthlyDayOfMonth(List<npe03__Recurring_Donation__c> newRecords);
     DonationResponse registerSponsorship(DonationRequest request); //SFESWCSD-92
     DonationResponse registerDonation(DonationRequest request); //SFESWCSD-92
