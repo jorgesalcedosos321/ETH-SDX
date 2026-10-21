@@ -1,14 +1,22 @@
 //SFESWCSD-74
 public class ArifpayService {
-    private static Arifpay_Config__mdt config;
-    
-    static {
-        config = [
+    private static Arifpay_Config__mdt config = loadConfig();
+
+    //Dan 21102026: an org without an active Arifpay_Config__mdt record (e.g. a fresh
+    //org or a test run) used to fail the static initializer with a QueryException
+    private static Arifpay_Config__mdt loadConfig() {
+        List<Arifpay_Config__mdt> configs = [
             SELECT Bearer_Token__c, Endpoint__c, Merchant_API_Key__c
             FROM Arifpay_Config__mdt
             WHERE Active__c = true
             LIMIT 1
         ];
+        return configs.isEmpty() ? new Arifpay_Config__mdt(Endpoint__c = '', Bearer_Token__c = '', Merchant_API_Key__c = '') : configs[0];
+    }
+
+    @TestVisible
+    private static void setConfig(Arifpay_Config__mdt newConfig) {
+        config = newConfig;
     }
     
     public static void setToken(String newToken) {
@@ -29,7 +37,10 @@ public class ArifpayService {
         Metadata.DeployContainer container = new Metadata.DeployContainer();
         container.addMetadata(cmd);
         
-        Metadata.Operations.enqueueDeployment(container, null);    
+        //Dan 21102026: metadata cannot be deployed from within a test
+        if (!Test.isRunningTest()) {
+            Metadata.Operations.enqueueDeployment(container, null);
+        }    
     }
     
     public static String getToken(){
@@ -45,7 +56,7 @@ public class ArifpayService {
     }
     
     public static String getValidToken(){
-        Arifpay_Config__mdt config = [
+        List<Arifpay_Config__mdt> configs = [
             SELECT Bearer_Token__c, Token_Expiry__c
             FROM Arifpay_Config__mdt
             WHERE Active__c = true
@@ -53,9 +64,9 @@ public class ArifpayService {
         ];
 
         // If token still valid → use it
-        if(config.Token_Expiry__c != null &&
-           config.Token_Expiry__c > System.now().addMinutes(5)){
-            return config.Bearer_Token__c;
+        if(!configs.isEmpty() && configs[0].Token_Expiry__c != null &&
+           configs[0].Token_Expiry__c > System.now().addMinutes(5)){
+            return configs[0].Bearer_Token__c;
         }
 
         // Otherwise → refresh

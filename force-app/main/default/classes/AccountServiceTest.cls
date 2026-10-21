@@ -87,7 +87,7 @@ private class AccountServiceTest {
         String phone
     ) {
         DonationRequest request = new DonationRequest();
-        request.donorType = ApiConstants.DONOR_CORPORATE;
+        request.AddressType = ApiConstants.DONOR_CORPORATE;
         request.companyName = accountName;
         request.email = email;
         request.phone = phone;

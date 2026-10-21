@@ -168,8 +168,8 @@ public class OpportunityService implements IOpportunityService {
     public static String buildOpportunityName(
         DonationRequest request
     ) {
-        if (request.donorType != null &&
-            request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE) &&
+        if (request.AddressType != null &&
+            request.AddressType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE) &&
             !String.isBlank(request.companyName)) {
             return request.companyName + ' Donation';
         }

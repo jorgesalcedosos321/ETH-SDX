@@ -91,6 +91,7 @@ private class KenticoDonationRestServiceTest {
 
     @IsTest
     static void processesIndividualSponsorship() {
+        Test.setMock(HttpCalloutMock.class, new ArifPayHttpMock()); //Dan 21102026: ArifPay callouts are chained after intake
         DonationRequest request = sponsorshipRequest(ApiConstants.DONOR_INDIVIDUAL);
         invokeSponsorship(request);
 
@@ -202,7 +203,7 @@ private class KenticoDonationRestServiceTest {
     private static DonationRequest baseRequest(String donorType) {
         DonationRequest request = new DonationRequest();
         request.formType = 'Donation';
-        request.donorType = donorType;
+        request.AddressType = donorType;
         request.donationId = 'REST-DONATION-' + donorType;
         request.amount = 100;
         request.firstName = 'REST';
@@ -222,7 +223,7 @@ private class KenticoDonationRestServiceTest {
         request.childDataSafeguarding = false;
         request.emailOptOut = false;
         request.campaignId = 'REST-TEST-CAMPAIGN';
-        request.paymentMethod = ApiConstants.PAYMENT_CARD;
+        request.paymentType = ApiConstants.PAYMENT_CARD;
         request.source = 'Web';
         return request;
     }
@@ -283,9 +284,9 @@ private class KenticoDonationRestServiceTest {
         callback.paymentStatus = 'SUCCESS';
         callback.amount = donationRequest.amount;
         callback.transactionDate = Date.today();
-        callback.transactionId = 'ARIFPAY-' + donationRequest.donorType;
-        callback.paymentMethod = donationRequest.paymentMethod;
-        callback.creditCardHolder = donationRequest.donorType == ApiConstants.DONOR_CORPORATE
+        callback.transactionId = 'ARIFPAY-' + donationRequest.AddressType;
+        callback.paymentMethod = donationRequest.paymentType;
+        callback.creditCardHolder = donationRequest.AddressType == ApiConstants.DONOR_CORPORATE
             ? donationRequest.companyName
             : donationRequest.firstName + ' ' + donationRequest.lastName;
         callback.creditCardType = 'Visa';

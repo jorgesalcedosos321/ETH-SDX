@@ -6,7 +6,7 @@ private class ValidationServiceTest {
         assertValidationError(new DonationRequest(), 'Donor Type is required.');
 
         DonationRequest corporate = validRequest();
-        corporate.donorType = ApiConstants.DONOR_CORPORATE;
+        corporate.AddressType = ApiConstants.DONOR_CORPORATE;
         corporate.companyName = null;
         assertValidationError(
             corporate,
@@ -14,13 +14,13 @@ private class ValidationServiceTest {
         );
 
         corporate = validRequest();
-        corporate.donorType = ApiConstants.DONOR_CORPORATE;
+        corporate.AddressType = ApiConstants.DONOR_CORPORATE;
         corporate.companyName = 'Corporate Donor';
         corporate.firstName = null;
         assertValidationError(corporate, 'First Name is required.');
 
         corporate = validRequest();
-        corporate.donorType = ApiConstants.DONOR_CORPORATE;
+        corporate.AddressType = ApiConstants.DONOR_CORPORATE;
         corporate.companyName = 'Corporate Donor';
         corporate.lastName = null;
         assertValidationError(corporate, 'Last Name is required.');
@@ -53,8 +53,8 @@ private class ValidationServiceTest {
         assertValidationError(request, 'Campaign is required.');
 
         request = validRequest();
-        request.paymentMethod = null;
-        assertValidationError(request, 'Payment Method is required.');
+        request.paymentType = null;
+        assertValidationError(request, 'Payment Type is required.');
 
         request = validRequest();
         request.donationType = ApiConstants.DONATION_SPONSORSHIP;
@@ -75,15 +75,15 @@ private class ValidationServiceTest {
 
     private static DonationRequest validRequest() {
         DonationRequest request = new DonationRequest();
-        request.donorType = ApiConstants.DONOR_INDIVIDUAL;
+        request.AddressType = ApiConstants.DONOR_INDIVIDUAL;
         request.donationType = ApiConstants.DONATION_ONE_OFF;
         request.firstName = 'Valid';
         request.lastName = 'Donor';
         request.email = 'valid.donor@example.org';
         request.amount = 25;
-        request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
+        // request.paymentType = ApiConstants.PAYMENT_ONE_TIME;
         request.campaignId = 'VALIDATION-CAMPAIGN';
-        request.paymentMethod = ApiConstants.PAYMENT_CARD;
+        request.paymentType = ApiConstants.PAYMENT_CARD;
         request.personalDataConsent = true;
         return request;
     }

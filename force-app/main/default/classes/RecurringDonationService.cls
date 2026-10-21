@@ -220,8 +220,10 @@ public class RecurringDonationService implements IRecurringDonationService {
                 request.frequency;
         }
         
-        if (!String.isBlank(request.paymentMethod)) {
-        	recurringDonation.npsp__PaymentMethod__c = request.paymentMethod;
+        //CR by Dan 08102026 paymentType: only set payment method when it is a valid picklist value
+        if (!String.isBlank(request.paymentType) &&
+            Utils.isValidPicklistValue('npe03__Recurring_Donation__c', 'npsp__PaymentMethod__c', request.paymentType)) {
+            recurringDonation.npsp__PaymentMethod__c = request.paymentType;
         }
         
         Id campaignId = CampaignService.getCampaignId(request);
@@ -299,8 +301,11 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         // Custom fields
         rd.Donation_Id__c = request.donationGuid;
-        rd.npsp__PaymentMethod__c = request.paymentMethod;
-        rd.Payment_Type__c = request.paymentMethod;
+        //CR by Dan 08102026 paymentType: only set payment method when it is a valid picklist value
+        if (Utils.isValidPicklistValue('npe03__Recurring_Donation__c', 'npsp__PaymentMethod__c', request.paymentType)) {
+            rd.npsp__PaymentMethod__c = request.paymentType;
+        }
+        //rd.Payment_Type__c = request.paymentType;
         rd.Donation_Type__c = 'Recurring Donation';
 
         return rd;
@@ -386,8 +391,8 @@ public class RecurringDonationService implements IRecurringDonationService {
     }
 
     private static Boolean isCorporateDonor(DonationRequest request) {
-        return String.isNotBlank(request.donorType) &&
-            request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE);
+        return String.isNotBlank(request.AddressType) &&
+            request.AddressType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE);
     }
 
     private static void setRecurringDonor(

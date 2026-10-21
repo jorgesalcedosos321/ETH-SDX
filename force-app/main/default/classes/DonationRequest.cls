@@ -5,7 +5,7 @@
 public class DonationRequest {
     // Transaction
     public String formType; //transactionType       // Prospect | Donation
-    public String donorType;             // Individual | Corporate
+    public String AddressType; //CR by Dan 08102026 donorType             // Individual | Corporate
     public String donationType;          // OneOff | Recurring | Sponsorship
     public String donationId;
 
@@ -52,7 +52,7 @@ public class DonationRequest {
     public String referenceId;
 
     // Payment
-    public String paymentMethod;
+    //public String paymentMethod; //CR by Dan 08102026 donorType
     public String paymentType;
 
     // Misc

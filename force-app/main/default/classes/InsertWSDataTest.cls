@@ -51,6 +51,7 @@ private with sharing class InsertWSDataTest {
     }
     
     @isTest static void createSecondRD() {
+        Test.setMock(HttpCalloutMock.class, new ArifPayHttpMock()); //Dan 21102026: closing the old RD chains the ArifPay cancellation callouts
         Id cont1 = [SELECT Id FROM Contact WHERE email = 'test2@gmail.com' LIMIT 1].Id;
         npe03__Recurring_Donation__c recurringDonation = new npe03__Recurring_Donation__c(
             npe03__Amount__c = 1000,

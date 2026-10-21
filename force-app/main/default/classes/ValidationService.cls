@@ -17,11 +17,11 @@ public inherited sharing class ValidationService {
 
     private static void validateDonor(DonationRequest request) {
 
-        if (String.isBlank(request.donorType)) {
+        if (String.isBlank(request.AddressType)) {
             throw new DonationValidationException('Donor Type is required.');
         }
 
-        if (request.donorType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE)) {
+        if (request.AddressType.equalsIgnoreCase(ApiConstants.DONOR_CORPORATE)) {
             if (String.isBlank(request.companyName)) {
                 throw new DonationValidationException(
                     'Account name is required for corporate donors.'
@@ -62,8 +62,8 @@ public inherited sharing class ValidationService {
 
     private static void validatePayment(DonationRequest request) {
 
-        if (String.isBlank(request.paymentMethod)) {
-            throw new DonationValidationException('Payment Method is required.');
+        if (String.isBlank(request.paymentType)) { //CR by Dan 08102026 donorType
+            throw new DonationValidationException('Payment Type is required.');
         }
 
     }
