@@ -17,6 +17,8 @@ private class GenerateHistoricOppsBatchTest { //SFESWCSD-113
     ) {
         npe03__Recurring_Donation__c recurringDonation = new npe03__Recurring_Donation__c(
                 npe03__Organization__c = account.Id,
+                Donation_Type__c = 'Recurring Donation', //SFESWCSD-113 required on the recurring donation
+                Donor_Type__c = 'Corporate',
                 npe03__Amount__c = amount,
                 npe03__Installment_Period__c = 'Monthly',
                 npe03__Open_Ended_Status__c = 'Open',
@@ -296,6 +298,8 @@ private class GenerateHistoricOppsBatchTest { //SFESWCSD-113
         // Without an established date the batch must skip the recurring donation.
         npe03__Recurring_Donation__c missingDatesDonation = new npe03__Recurring_Donation__c(
                 npe03__Organization__c = account.Id,
+                Donation_Type__c = 'Recurring Donation', //SFESWCSD-113 required on the recurring donation
+                Donor_Type__c = 'Corporate',
                 npe03__Amount__c = 60,
                 npe03__Installment_Period__c = 'Monthly',
                 npe03__Open_Ended_Status__c = 'Open',

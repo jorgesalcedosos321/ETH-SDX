@@ -1,0 +1,1 @@
+{ "packageDirectories": [ { "path": "force-app", "default": true } ], "name": "release_meta", "namespace": "", "sourceApiVersion": "67.0" }
