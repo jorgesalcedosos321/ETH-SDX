@@ -626,9 +626,22 @@ public class OpportunityTest {
         Id queueId = getOrCreateDonationsCallsQueue();
         Account acc = createAccount('Household Account');
         Contact con = createContact(acc.Id);
-        npe03__Recurring_Donation__c loyaltyRd = createRecurringDonation(con.Id, null);
-        npe03__Recurring_Donation__c welcomeRd = createRecurringDonation(con.Id, null);
-        npe03__Recurring_Donation__c bothRd = createRecurringDonation(con.Id, null);
+        //One insert for the three RDs: separate inserts exceed the SOQL limit with production's NPSP automation
+        List<npe03__Recurring_Donation__c> rds = new List<npe03__Recurring_Donation__c>();
+        for (Integer i = 0; i < 3; i++) {
+            rds.add(new npe03__Recurring_Donation__c(
+                npe03__Contact__c = con.Id,
+                npsp__PaymentMethod__c = 'Check',
+                npe03__Amount__c = 100,
+                npsp__Day_of_Month__c = '1',
+                Donor_Type__c = 'Individual',
+                Donation_Type__c = 'Recurring Donation'
+            ));
+        }
+        insert rds;
+        npe03__Recurring_Donation__c loyaltyRd = rds[0];
+        npe03__Recurring_Donation__c welcomeRd = rds[1];
+        npe03__Recurring_Donation__c bothRd = rds[2];
         Map<Id, npe03__Recurring_Donation__c> rdById = queryRecurringDonationsWithContact(
             new Set<Id>{ loyaltyRd.Id, welcomeRd.Id, bothRd.Id }
         );
