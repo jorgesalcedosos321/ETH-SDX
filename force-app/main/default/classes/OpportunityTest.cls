@@ -749,6 +749,20 @@ public class OpportunityTest {
 
     //SFESWCSD-85 case 9, case 10
     @isTest
+    static void neverSendsReminder2AndReminder3TogetherForTheSameDonor() {
+        // Months back 0, 1 and 2 all change to Missed in one update: month 1 alone would be REMINDER_2 and
+        // month 0 REMINDER_3
+        Map<String, Map<Id, Id>> targets = missedReminderTargets(
+            ApiConstants.DONATION_SPONSORSHIP,
+            new List<String>{ 'Missed', 'Missed', 'Missed', 'Closed Won' },
+            3
+        );
+        Assert.areEqual(new Set<String>{ Utils.REMINDER_3 }, targets.keySet());
+        Assert.areEqual(1, targets.get(Utils.REMINDER_3).size());
+    }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
     static void sendsNoReminderForTheFirstMissedMonth() {
         Assert.isTrue(missedReminderTargets(
             ApiConstants.DONATION_SPONSORSHIP,
@@ -794,6 +808,11 @@ public class OpportunityTest {
     // Creates a Recurring Donation with one Opportunity per stage (index = months back from today) in one
     // insert, and evaluates the one at index 0 as if it just changed from Pledged to its stage.
     private static Map<String, Map<Id, Id>> missedReminderTargets(String donationType, List<String> stagesByMonthsBack) {
+        return missedReminderTargets(donationType, stagesByMonthsBack, 1);
+    }
+
+    // The first changedCount Opportunities (months back 0, 1, ...) are the ones that changed to their stage
+    private static Map<String, Map<Id, Id>> missedReminderTargets(String donationType, List<String> stagesByMonthsBack, Integer changedCount) {
         Account acc = createAccount('Household Account');
         Contact con = createContact(acc.Id);
         npe03__Recurring_Donation__c rd = createRecurringDonation(con.Id, null);
@@ -813,9 +832,12 @@ public class OpportunityTest {
         }
         insert opps;
 
-        return OpportunityService.buildMissedReminderTargets(
-            new List<Opportunity>{ opps[0] },
-            new Map<Id, Opportunity>{ opps[0].Id => new Opportunity(Id = opps[0].Id, StageName = 'Pledged') }
-        );
+        List<Opportunity> changed = new List<Opportunity>();
+        Map<Id, Opportunity> oldRecords = new Map<Id, Opportunity>();
+        for (Integer i = 0; i < changedCount; i++) {
+            changed.add(opps[i]);
+            oldRecords.put(opps[i].Id, new Opportunity(Id = opps[i].Id, StageName = 'Pledged'));
+        }
+        return OpportunityService.buildMissedReminderTargets(changed, oldRecords);
     }
 }

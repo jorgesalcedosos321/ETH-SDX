@@ -1023,15 +1023,30 @@ public class OpportunityService implements IOpportunityService {
                 : new Set<Integer>();
             missedMonths.addAll(triggerMonthsByRd.get(rdId));
 
+            // Several Opportunities of the same RD can change together: REMINDER_2 and REMINDER_3 are
+            // never sent at the same time, only the highest one applies
+            String templateKey;
             for (Integer triggerMonth : triggerMonthsByRd.get(rdId)) {
-                String templateKey = missedReminderTemplateKey(missedMonths, triggerMonth);
-                if (templateKey == null) {
-                    continue;
+                String monthTemplateKey = missedReminderTemplateKey(missedMonths, triggerMonth);
+                if (monthTemplateKey == Utils.REMINDER_3 || (monthTemplateKey != null && templateKey == null)) {
+                    templateKey = monthTemplateKey;
                 }
-                if (!targetsByTemplate.containsKey(templateKey)) {
-                    targetsByTemplate.put(templateKey, new Map<Id, Id>());
-                }
-                targetsByTemplate.get(templateKey).put(contactByRdId.get(rdId), rdId);
+            }
+            if (templateKey == null) {
+                continue;
+            }
+            if (!targetsByTemplate.containsKey(templateKey)) {
+                targetsByTemplate.put(templateKey, new Map<Id, Id>());
+            }
+            targetsByTemplate.get(templateKey).put(contactByRdId.get(rdId), rdId);
+        }
+
+        // Same rule across the Recurring Donations of one Contact
+        if (targetsByTemplate.containsKey(Utils.REMINDER_2) && targetsByTemplate.containsKey(Utils.REMINDER_3)) {
+            Map<Id, Id> reminder2Targets = targetsByTemplate.get(Utils.REMINDER_2);
+            reminder2Targets.keySet().removeAll(targetsByTemplate.get(Utils.REMINDER_3).keySet());
+            if (reminder2Targets.isEmpty()) {
+                targetsByTemplate.remove(Utils.REMINDER_2);
             }
         }
         return targetsByTemplate;
