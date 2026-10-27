@@ -135,13 +135,13 @@ private class GenerateHistoricOppsBatchTest { //SFESWCSD-113
                 ORDER BY CloseDate ASC
         ];
 
-        System.assertEquals(1, opportunities.size(), 'Should keep the base opportunity and create two historic ones.');
-        System.assertEquals(Date.newInstance(2026, 1, 15), opportunities[0].CloseDate);
-        // System.assertEquals(Date.newInstance(2026, 2, 15), opportunities[1].CloseDate);
-        // System.assertEquals(Date.newInstance(2026, 3, 15), opportunities[2].CloseDate);
-        System.assertEquals('Closed Won', opportunities[0].StageName, 'Last opp must be Closed Won');
-        // System.assertNotEquals('Closed Won', opportunities[1].StageName);
-        // System.assertNotEquals('Closed Won', opportunities[2].StageName);
+        //SFESWCSD-113 The base opportunity (March) already covers its month, so only February is created and,
+        //being the oldest open one, it is the one collected.
+        System.assertEquals(2, opportunities.size(), 'Should keep the base opportunity and create the missing historic one.');
+        System.assertEquals(Date.newInstance(2026, 2, 15), opportunities[0].CloseDate);
+        System.assertEquals(Date.newInstance(2026, 3, 15), opportunities[1].CloseDate);
+        System.assertEquals('Closed Won', opportunities[0].StageName, 'Oldest opp must be Closed Won');
+        System.assertNotEquals('Closed Won', opportunities[1].StageName);
         for (Opportunity opportunity : opportunities) {
             System.assertEquals(Decimal.valueOf('50'), opportunity.Amount);
             System.assertEquals(recurringDonation.Id, opportunity.npe03__Recurring_Donation__c);

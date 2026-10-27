@@ -4,10 +4,7 @@
 //System.schedule('END_OF_YEAR_REPORT_P - December 30', '0 0 0 30 12 ?', new SendEmailNotificationBatch(Utils.END_OF_YEAR_REPORT_P));
 //SFESWCSD-85 case 8 - Run once to check daily at midnight:
 //System.schedule('REMINDER_1 - Monthly', '0 0 0 1 * ?', new SendEmailNotificationBatch(Utils.REMINDER_1));
-//SFESWCSD-85 case 9 - Run once to check daily at midnight:
-//System.schedule('REMINDER_2 - Monthly', '0 0 0 1 * ?', new SendEmailNotificationBatch(Utils.REMINDER_2));
-//SFESWCSD-85 case 10 - Run once to check daily at midnight:
-//System.schedule('REMINDER_3 - Monthly', '0 0 0 1 * ?', new SendEmailNotificationBatch(Utils.REMINDER_3));
+//SFESWCSD-85 case 9, case 10: REMINDER_2 and REMINDER_3 are no longer scheduled; OpportunityService.sendMissedReminderEmails sends them when an Opportunity changes to Missed
 //Run once to check daily for one-time donations created one month ago:
 //System.schedule('ONE_TIME_DONORS_LE - Daily', '0 0 0 * * ?', new SendEmailNotificationBatch(Utils.ONE_TIME_DONORS_LE));
 global class SendEmailNotificationBatch implements Database.Batchable<sObject>, Schedulable {
@@ -100,13 +97,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
                 AND (ContactId != null OR npsp__Primary_Contact__c != null)
             ]);
         //SFESWCSD-85 case 8
-        //SFESWCSD-85 case 9
-        //SFESWCSD-85 case 10
-        } else if (
-            templateKey == Utils.REMINDER_1 ||
-            templateKey == Utils.REMINDER_2 ||
-            templateKey == Utils.REMINDER_3
-        ) {
+        } else if (templateKey == Utils.REMINDER_1) {
             return Database.getQueryLocator([
                 SELECT Id, npe03__Contact__c
                 FROM npe03__Recurring_Donation__c
@@ -154,11 +145,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
     private static Map<Id, Id> buildTargets(String selectedTemplateKey, List<sObject> scope, Datetime testStartDate) {
         Map<Id, Id> targets = new Map<Id, Id>();
 
-        if (
-            selectedTemplateKey == Utils.REMINDER_1 ||
-            selectedTemplateKey == Utils.REMINDER_2 ||
-            selectedTemplateKey == Utils.REMINDER_3
-        ) {
+        if (selectedTemplateKey == Utils.REMINDER_1) {
             targets.putAll(buildReminderTargets(selectedTemplateKey, scope, testStartDate != null ? testStartDate.date() : Date.today()));
         } else if (selectedTemplateKey == Utils.ANNIVERSARY_EMAIL_1) {
             targets.putAll(buildSponsorshipAnniversaryTargets(scope));
@@ -220,18 +207,14 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
         };
     }
 
-    //SFESWCSD-85 case 8
-    //SFESWCSD-85 case 9
-    //SFESWCSD-85 case 10
+    //SFESWCSD-85 case 8 (REMINDER_2 / REMINDER_3 are sent by OpportunityService.sendMissedReminderEmails)
     @TestVisible
     private static Map<Id, Id> buildReminderTargets(
         String selectedTemplateKey,
         List<sObject> scope,
         Date testStartDate
     ) {
-        Integer requiredMisses = selectedTemplateKey == Utils.REMINDER_1
-            ? 1
-            : selectedTemplateKey == Utils.REMINDER_2 ? 2 : 3;
+        Integer requiredMisses = 1;
         System.debug('###requiredMisses: ' + requiredMisses);
         Map<Id, Id> contactsByRecurringDonation = new Map<Id, Id>();
         for (sObject record : scope) {
@@ -245,7 +228,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
         if (contactsByRecurringDonation.isEmpty()) {
             return new Map<Id, Id>();
         }
-        System.debug('###contactsByRecurringDonation: ' + contactsByRecurringDonation);
+        System.debug('###REMINDER contactsByRecurringDonation: ' + contactsByRecurringDonation);
 
         Date dateToCheck = testStartDate != null ? testStartDate : Date.Today();
         Set<Id> recurringDonationIds = contactsByRecurringDonation.keySet();
@@ -254,8 +237,11 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
         // Missed or Declined opportunity; the last 4 months before the current one.
         Date currentMonthStart = dateToCheck.toStartOfMonth();
         Date windowStart = currentMonthStart.addMonths(-4);
+        System.debug('###REMINDER currentMonthStart: ' + currentMonthStart);
+        System.debug('###REMINDER windowStart: ' + windowStart);
+
         Map<Id, Set<Integer>> missedMonthsByRecurringDonation = new Map<Id, Set<Integer>>();
-        for (npe01__OppPayment__c payment : [
+        List<npe01__OppPayment__c> missedPayments = [
             SELECT npe01__Scheduled_Date__c, npe01__Opportunity__r.CloseDate,
                 npe01__Opportunity__r.npe03__Recurring_Donation__c
             FROM npe01__OppPayment__c
@@ -269,7 +255,10 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
                     AND npe01__Opportunity__r.CloseDate < :currentMonthStart
                 )
             )
-        ]) {
+        ];
+        System.debug('###REMINDER missedPayments: ' + missedPayments);
+
+        for (npe01__OppPayment__c payment : missedPayments) {
             Id recurringDonationId =
                 payment.npe01__Opportunity__r.npe03__Recurring_Donation__c;
             Date missedDate = payment.npe01__Scheduled_Date__c != null

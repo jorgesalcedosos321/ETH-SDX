@@ -911,6 +911,154 @@ public class OpportunityService implements IOpportunityService {
         return runHasOppToCheck ? streak : 0;
     }
 
+    // REMINDER_2 / REMINDER_3 are evaluated when an installment Opportunity turns to Missed, instead of
+    // by the monthly SendEmailNotificationBatch.
+    //SFESWCSD-85 case 9, case 10
+    public void sendMissedReminderEmails(
+        List<Opportunity> newRecords,
+        Map<Id, Opportunity> oldRecords
+    ) {
+        Map<String, Map<Id, Id>> targetsByTemplate = buildMissedReminderTargets(newRecords, oldRecords);
+
+        for (String templateKey : targetsByTemplate.keySet()) {
+            Map<Id, Id> targets = targetsByTemplate.get(templateKey);
+            Set<Id> accepted = DLE_EmailDispatchService.sendEmail(
+                templateKey,
+                targets,
+                Utils.buildNameForEmailTokens(targets.keySet()) //SFESWCSD-92
+            );
+            System.debug(
+                '###sendMissedReminderEmails ' + templateKey + ': ' + accepted.size() +
+                ' of ' + targets.size() + ' emails accepted'
+            );
+        }
+    }
+
+    // For each Opportunity that just changed to Missed, looks at its own month and the 3 months before it
+    // (Missed or Declined Opportunities of the same Sponsorship Recurring Donation, by Close Date month):
+    //   REMINDER_2: this month and the month before are missed, the one before those is not.
+    //   REMINDER_3: this month and the 2 months before are missed, the one before those is not.
+    // 4 missed months in a row: no reminder. Same rules as SendEmailNotificationBatch.buildReminderTargets.
+    // Targets are recipient (Contact) => Recurring Donation, like the batch.
+    //SFESWCSD-85 case 9, case 10
+    @TestVisible
+    private static Map<String, Map<Id, Id>> buildMissedReminderTargets(
+        List<Opportunity> newRecords,
+        Map<Id, Opportunity> oldRecords
+    ) {
+        Map<String, Map<Id, Id>> targetsByTemplate = new Map<String, Map<Id, Id>>();
+        if (oldRecords == null) {
+            return targetsByTemplate;
+        }
+
+        // Recurring Donation => months (of the Opportunities that just turned Missed)
+        Map<Id, Set<Integer>> triggerMonthsByRd = new Map<Id, Set<Integer>>();
+        Date earliestCloseDate;
+        Date latestCloseDate;
+        for (Opportunity opportunity : newRecords) {
+            Opportunity oldOpportunity = oldRecords.get(opportunity.Id);
+            if (
+                oldOpportunity == null ||
+                oldOpportunity.StageName == 'Missed' ||
+                opportunity.StageName != 'Missed' ||
+                opportunity.npe03__Recurring_Donation__c == null ||
+                opportunity.CloseDate == null
+            ) {
+                continue;
+            }
+            Id rdId = opportunity.npe03__Recurring_Donation__c;
+            if (!triggerMonthsByRd.containsKey(rdId)) {
+                triggerMonthsByRd.put(rdId, new Set<Integer>());
+            }
+            triggerMonthsByRd.get(rdId).add(reminderMonthKey(opportunity.CloseDate));
+            if (earliestCloseDate == null || opportunity.CloseDate < earliestCloseDate) {
+                earliestCloseDate = opportunity.CloseDate;
+            }
+            if (latestCloseDate == null || opportunity.CloseDate > latestCloseDate) {
+                latestCloseDate = opportunity.CloseDate;
+            }
+        }
+        if (triggerMonthsByRd.isEmpty()) {
+            return targetsByTemplate;
+        }
+
+        Map<Id, Id> contactByRdId = new Map<Id, Id>();
+        for (npe03__Recurring_Donation__c recurringDonation : [
+            SELECT Id, npe03__Contact__c
+            FROM npe03__Recurring_Donation__c
+            WHERE Id IN :triggerMonthsByRd.keySet()
+            AND npe03__Contact__c != null
+            AND Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP
+        ]) {
+            contactByRdId.put(recurringDonation.Id, recurringDonation.npe03__Contact__c);
+        }
+        if (contactByRdId.isEmpty()) {
+            return targetsByTemplate;
+        }
+
+        // Months with a Missed / Declined Opportunity per Recurring Donation, from 4 months before the
+        // earliest changed Opportunity up to the end of the latest changed one's month.
+        Date windowStart = earliestCloseDate.toStartOfMonth().addMonths(-3);
+        Date windowEnd = latestCloseDate.toStartOfMonth().addMonths(1);
+        Map<Id, Set<Integer>> missedMonthsByRd = new Map<Id, Set<Integer>>();
+        for (Opportunity missedOpportunity : [
+            SELECT npe03__Recurring_Donation__c, CloseDate
+            FROM Opportunity
+            WHERE npe03__Recurring_Donation__c IN :contactByRdId.keySet()
+            AND StageName IN ('Declined', 'Missed')
+            AND CloseDate >= :windowStart
+            AND CloseDate < :windowEnd
+        ]) {
+            Id rdId = missedOpportunity.npe03__Recurring_Donation__c;
+            if (!missedMonthsByRd.containsKey(rdId)) {
+                missedMonthsByRd.put(rdId, new Set<Integer>());
+            }
+            missedMonthsByRd.get(rdId).add(reminderMonthKey(missedOpportunity.CloseDate));
+        }
+
+        for (Id rdId : contactByRdId.keySet()) {
+            // The changed Opportunity counts as missed even if the query does not see it yet
+            Set<Integer> missedMonths = missedMonthsByRd.containsKey(rdId)
+                ? missedMonthsByRd.get(rdId)
+                : new Set<Integer>();
+            missedMonths.addAll(triggerMonthsByRd.get(rdId));
+
+            for (Integer triggerMonth : triggerMonthsByRd.get(rdId)) {
+                String templateKey = missedReminderTemplateKey(missedMonths, triggerMonth);
+                if (templateKey == null) {
+                    continue;
+                }
+                if (!targetsByTemplate.containsKey(templateKey)) {
+                    targetsByTemplate.put(templateKey, new Map<Id, Id>());
+                }
+                targetsByTemplate.get(templateKey).put(contactByRdId.get(rdId), rdId);
+            }
+        }
+        return targetsByTemplate;
+    }
+
+    // Length of the missed run that ends in triggerMonth: 2 => REMINDER_2, 3 => REMINDER_3, anything else
+    // (1, or 4+ in a row) => no reminder here.
+    //SFESWCSD-85 case 9, case 10
+    @TestVisible
+    private static String missedReminderTemplateKey(Set<Integer> missedMonthKeys, Integer triggerMonth) {
+        Integer runLength = 0;
+        while (missedMonthKeys.contains(triggerMonth - runLength)) {
+            runLength++;
+        }
+        if (runLength == 2) {
+            return Utils.REMINDER_2;
+        }
+        if (runLength == 3) {
+            return Utils.REMINDER_3;
+        }
+        return null;
+    }
+
+    private static Integer reminderMonthKey(Date value) {
+        return value.year() * 12 + value.month();
+    }
+
     public Contact getContactById(List<Contact> conts, Id contactId) {
         for (Contact cont : conts) {
             if (cont.Id == contactId)  {

@@ -31,6 +31,7 @@ global class OpportunityHandler_TDTM extends npsp.TDTM_Runnable{
             opp.closeRecurringDonationWhenOpportunityIsCloseLost(newRecords,oldRecords);
             opp.sendOneTimeDonorThankYouEmail(newRecords, oldRecords);//SFESWCSD-86
             opp.sendSuccessfulPaymentMilestoneEmails(newRecords, oldRecords);//SFESWCSD-91
+            opp.sendMissedReminderEmails(newRecords, oldRecords);//SFESWCSD-85 case 9, case 10
         }
 
         if (triggerAction == npsp.TDTM_Runnable.Action.AfterInsert || triggerAction == npsp.TDTM_Runnable.Action.AfterUpdate) {

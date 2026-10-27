@@ -271,37 +271,32 @@ private class SendEmailNotificationBatchTest {
         System.assert(!SendEmailNotificationBatch.isReminderDue(missedMonths(new List<Integer>{ 1, 3 }), 2, today));
     }
 
-    //SFESWCSD-85 case 8
-    //SFESWCSD-85 case 9
-    //SFESWCSD-85 case 10
+    //SFESWCSD-85 case 8 (REMINDER_2 / REMINDER_3 are covered in OpportunityTest)
     @isTest
     static void sendsOneReminderPerRoundOfMissedOpportunities() {
         Account account = [SELECT Id FROM Account LIMIT 1];
         Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
         npe03__Recurring_Donation__c recurringDonation = createSponsorship(contact.Id);
         createRecurringOpportunity(account.Id, recurringDonation.Id, 'Missed', 1);
-        createRecurringOpportunity(account.Id, recurringDonation.Id, 'Declined', 2);
-        createRecurringOpportunity(account.Id, recurringDonation.Id, 'Closed Won', 3);
+        createRecurringOpportunity(account.Id, recurringDonation.Id, 'Closed Won', 2);
         List<sObject> scope = new List<sObject>{
             [SELECT Id, npe03__Contact__c FROM npe03__Recurring_Donation__c WHERE Id = :recurringDonation.Id]
         };
 
-        // 2 missed in a row -> only REMINDER_2
+        // 1 missed month -> REMINDER_1
         System.assertEquals(
             recurringDonation.Id,
-            SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_2, scope, null).get(contact.Id)
+            SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_1, scope, null).get(contact.Id)
         );
-        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_1, scope, null).isEmpty());
-        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_3, scope, null).isEmpty());
 
         // Already sent for that recurring donation -> never sent again
         insert new DLE_Email_Log__c(
-            Event_Key__c = Utils.REMINDER_2,
+            Event_Key__c = Utils.REMINDER_1,
             Recipient_Id__c = String.valueOf(contact.Id),
             What_Id__c = String.valueOf(recurringDonation.Id),
             Status__c = 'Sent'
         );
-        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_2, scope, null).isEmpty());
+        System.assert(SendEmailNotificationBatch.buildReminderTargets(Utils.REMINDER_1, scope, null).isEmpty());
     }
 
     private static Opportunity createRecurringOpportunity(

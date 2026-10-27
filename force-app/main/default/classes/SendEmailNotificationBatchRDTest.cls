@@ -25,7 +25,7 @@ private class SendEmailNotificationBatchRDTest {
     @isTest(SeeAllData=true)
     static void runTest() {
         // TO DO: implement unit test
-        SendEmailNotificationBatch senb = new SendEmailNotificationBatch(Utils.REMINDER_3);
+        SendEmailNotificationBatch senb = new SendEmailNotificationBatch(Utils.REMINDER_1);
         senb.testStartDate = Datetime.now().addMonths(1);
         List<npe03__Recurring_Donation__c> recurringDonations = [SELECT Id, npe03__Contact__c
                 FROM npe03__Recurring_Donation__c

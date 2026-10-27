@@ -711,4 +711,98 @@ public class OpportunityTest {
 
         Assert.areEqual(0, [SELECT COUNT() FROM Task WHERE WhatId = :rd.Id], 'No task is created and no exception is thrown');
     }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
+    static void sendsReminder2WhenTheCurrentAndPreviousMonthAreMissed() {
+        // Months back 0 (just turned Missed), 1 Declined, 2 Closed Won
+        Map<String, Map<Id, Id>> targets = missedReminderTargets(
+            ApiConstants.DONATION_SPONSORSHIP,
+            new List<String>{ 'Missed', 'Declined', 'Closed Won' }
+        );
+        Assert.areEqual(new Set<String>{ Utils.REMINDER_2 }, targets.keySet());
+        Assert.areEqual(1, targets.get(Utils.REMINDER_2).size());
+    }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
+    static void sendsReminder3WhenTheCurrentAndTwoPreviousMonthsAreMissed() {
+        Map<String, Map<Id, Id>> targets = missedReminderTargets(
+            ApiConstants.DONATION_SPONSORSHIP,
+            new List<String>{ 'Missed', 'Missed', 'Declined', 'Closed Won' }
+        );
+        Assert.areEqual(new Set<String>{ Utils.REMINDER_3 }, targets.keySet());
+    }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
+    static void sendsNoReminderForTheFirstMissedMonth() {
+        Assert.isTrue(missedReminderTargets(
+            ApiConstants.DONATION_SPONSORSHIP,
+            new List<String>{ 'Missed', 'Closed Won' }
+        ).isEmpty());
+    }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
+    static void sendsNoReminderForFourMissedMonthsInARow() {
+        Assert.isTrue(missedReminderTargets(
+            ApiConstants.DONATION_SPONSORSHIP,
+            new List<String>{ 'Missed', 'Missed', 'Missed', 'Declined' }
+        ).isEmpty());
+    }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
+    static void sendsNoReminderForNonSponsorship() {
+        Assert.isTrue(missedReminderTargets(
+            'Recurring Donation',
+            new List<String>{ 'Missed', 'Missed' }
+        ).isEmpty());
+    }
+
+    //SFESWCSD-85 case 9, case 10
+    @isTest
+    static void sendsNoReminderWhenTheStageDidNotChange() {
+        Opportunity opp = new Opportunity(
+            Id = Id.valueOf('006000000000001'),
+            StageName = 'Missed',
+            CloseDate = Date.today(),
+            npe03__Recurring_Donation__c = Id.valueOf(
+                npe03__Recurring_Donation__c.SObjectType.getDescribe().getKeyPrefix() + '000000000001'
+            )
+        );
+        Assert.isTrue(OpportunityService.buildMissedReminderTargets(
+            new List<Opportunity>{ opp },
+            new Map<Id, Opportunity>{ opp.Id => new Opportunity(Id = opp.Id, StageName = 'Missed') }
+        ).isEmpty());
+    }
+
+    // Creates a Recurring Donation with one Opportunity per stage (index = months back from today) in one
+    // insert, and evaluates the one at index 0 as if it just changed from Pledged to its stage.
+    private static Map<String, Map<Id, Id>> missedReminderTargets(String donationType, List<String> stagesByMonthsBack) {
+        Account acc = createAccount('Household Account');
+        Contact con = createContact(acc.Id);
+        npe03__Recurring_Donation__c rd = createRecurringDonation(con.Id, null);
+        rd.Donation_Type__c = donationType;
+        update rd;
+        delete [SELECT Id FROM Opportunity WHERE npe03__Recurring_Donation__c = :rd.Id];
+
+        List<Opportunity> opps = new List<Opportunity>();
+        for (Integer monthsBack = 0; monthsBack < stagesByMonthsBack.size(); monthsBack++) {
+            opps.add(new Opportunity(
+                AccountId = acc.Id,
+                StageName = stagesByMonthsBack[monthsBack],
+                npe03__Recurring_Donation__c = rd.Id,
+                Name = 'OppMissed' + monthsBack,
+                CloseDate = Date.today().addMonths(-monthsBack)
+            ));
+        }
+        insert opps;
+
+        return OpportunityService.buildMissedReminderTargets(
+            new List<Opportunity>{ opps[0] },
+            new Map<Id, Opportunity>{ opps[0].Id => new Opportunity(Id = opps[0].Id, StageName = 'Pledged') }
+        );
+    }
 }
