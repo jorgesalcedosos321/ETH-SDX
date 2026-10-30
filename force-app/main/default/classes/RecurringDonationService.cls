@@ -1177,14 +1177,19 @@ public class RecurringDonationService implements IRecurringDonationService {
         }
 
         // Trigger context can't make synchronous callouts, and each closed RD
-        // needs its own ArifPay callout sequence, so every session UUID is
-        // dispatched as its own chained Queueable (see ArifPayRDCancellationQueueable).
+        // needs its own ArifPay callout sequence. A single Queueable receives all
+        // session UUIDs and chains itself (see ArifPayRDCancellationQueueable), so
+        // this is safe from batch (1 enqueue max) and large updates (50 max).
+        List<String> sessionUuids = new List<String>();
         for (String sessionUuid : rdIds.values()) {
             if (String.isNotBlank(sessionUuid)) {
-                System.enqueueJob(
-                    new ArifPayRDCancellationQueueable(sessionUuid, 'INACTIVE')
-                );
+                sessionUuids.add(sessionUuid);
             }
+        }
+        if (!sessionUuids.isEmpty()) {
+            System.enqueueJob(
+                new ArifPayRDCancellationQueueable(sessionUuids, 'INACTIVE')
+            );
         }
     }
 }

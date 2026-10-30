@@ -273,6 +273,33 @@ private class ArifPayCancellationServiceTest {
     }
 
     @IsTest
+    static void rdQueueableHandlesAListOfUuidsInOneJob() {
+        useMock();
+        List<String> uuids = new List<String>();
+        for (Integer i = 0; i < 120; i++) {
+            uuids.add('uuid-' + i);
+        }
+        Test.startTest();
+        System.enqueueJob(new ArifPayRDCancellationQueueable(uuids, 'INACTIVE'));
+        Test.stopTest();
+        System.assertEquals(null, ArifPayCancellationService.pendingContinuation, 'Continuation is cleared');
+        new ArifPayRDCancellationQueueable(new List<String>(), 'INACTIVE').execute(null);
+    }
+
+    @IsTest
+    static void rdQueueableBuildsContinuationAndLogsFailures() {
+        ArifPayMock mock = useMock();
+        Test.startTest();
+        // Direct execute: runs the first UUID and builds the continuation for the rest
+        new ArifPayRDCancellationQueueable(new List<String>{'uuid-1', 'uuid-2'}, 'INACTIVE').execute(null);
+        // A rejected cancellation is logged and does not throw
+        mock.putStatus = 500;
+        new ArifPayRDCancellationQueueable(new List<String>{'uuid-3', 'uuid-4'}, 'INACTIVE').execute(null);
+        Test.stopTest();
+        System.assertEquals(null, ArifPayCancellationService.pendingContinuation, 'Continuation is cleared');
+    }
+
+    @IsTest
     static void queueablesDelegateToTheServices() {
         ArifPayMock mock = useMock();
         Test.startTest();

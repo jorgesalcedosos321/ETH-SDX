@@ -2,6 +2,9 @@
 //3rd WS called by SF
 public class ArifPayCancellationService {
     public static String baseUrl = ArifpayService.getEndpoint();
+    // Set by ArifPayRDCancellationQueueable so the subscriber job (the single
+    // enqueue allowed in a queueable) can resume the remaining RD cancellations.
+    public static ArifPayRDCancellationQueueable pendingContinuation;
 
     // Entry point for the cancellation sequence: 01 -> 02 -> 03.
     // changeRecurringDonationStatus (01) itself calls listSubscribers (02) on
@@ -153,7 +156,7 @@ public class ArifPayCancellationService {
             // from trigger context).
             if (!phonesToDeactivate.isEmpty()) {
                 System.enqueueJob(
-                    new ArifPaySubscriberCancellationQueueable(encodedSessionUuid, phonesToDeactivate)
+                    new ArifPaySubscriberCancellationQueueable(encodedSessionUuid, phonesToDeactivate, pendingContinuation)
                 );
             }
 
