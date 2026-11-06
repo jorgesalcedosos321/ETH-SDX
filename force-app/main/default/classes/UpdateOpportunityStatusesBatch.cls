@@ -11,14 +11,18 @@ global class UpdateOpportunityStatusesBatch implements Database.Stateful, Databa
     }
     
     global Database.QueryLocator start(Database.BatchableContext BC) {
-        return Database.getQueryLocator([SELECT Id, StageName FROM Opportunity WHERE Id IN : oppIds]);
+        return Database.getQueryLocator([SELECT Id, StageName, Name, CloseDate FROM Opportunity WHERE Id IN : oppIds]); //SFEUCMSD-134 Name and CloseDate are needed for the Payment Date
     }
     
     global void execute(Database.BatchableContext BC, List<Opportunity> scope) {
         for (Opportunity pay : scope) {
             pay.StageName = status;
         }
-        
+        //SFEUCMSD-134 The Payment Date travels in the same update as the stage, a later update could be overwritten by NPSP async jobs
+        if (status == 'Closed Won') {
+            PaymentTriggerService.applyLatestPaymentDate(scope);
+        }
+
         Database.SaveResult[] srList = Database.Update(scope, false);
         for (Database.SaveResult sr : srList) {
             if (sr.isSuccess()) {

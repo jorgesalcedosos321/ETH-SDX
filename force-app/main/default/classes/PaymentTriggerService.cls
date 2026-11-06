@@ -136,6 +136,8 @@ public class PaymentTriggerService implements IPaymentTriggerService {
             } else {
                 //newRecord.status__c = 'Pending'; //Commented because Failed transactions are converted in this status
             }
+            //SFEUCMSD-134 Paid set to true closes the opportunity as Closed Won even when the status already was Paid
+            boolean isPaidChangedToTrue = newRecord.npe01__Paid__c && (oldRecords == null || !oldRecords.get(newRecord.Id).npe01__Paid__c);
             if (newRecord.npe01__Paid__c == true && newRecord.status__c != 'Paid') {
                 newRecord.status__c = 'Paid';
             } 
@@ -147,7 +149,7 @@ public class PaymentTriggerService implements IPaymentTriggerService {
             
             System.debug('checkPaidOption newRecord.status__c: ' + newRecord.status__c);
             if (newRecord.status__c == 'Paid') {
-                if (oldRecords == null || newRecord.status__c <> oldRecords.get(newRecord.Id).status__c) {
+                if (oldRecords == null || newRecord.status__c <> oldRecords.get(newRecord.Id).status__c || isPaidChangedToTrue) { //SFEUCMSD-134
                 	newRecord.npe01__Paid__c = true;
                     if (newRecord.npe01__Payment_Date__c == null) 
                         newRecord.npe01__Payment_Date__c = Date.today();
@@ -219,12 +221,106 @@ public class PaymentTriggerService implements IPaymentTriggerService {
 
     /*@future*/
     private static void updateOpportunityStatus(Set<Id> oppIds, String newStatus) {
-        List<Opportunity> opps = [SELECT Id, StageName FROM Opportunity WHERE Id IN : oppIds];
+        List<Opportunity> opps = [SELECT Id, StageName, Name, CloseDate FROM Opportunity WHERE Id IN : oppIds]; //SFEUCMSD-134 Name and CloseDate are needed for the Payment Date
 
         for (Opportunity opp : opps) {
             opp.StageName = newStatus;
         }
+        if (newStatus == 'Closed Won') {
+            applyLatestPaymentDate(opps); //SFEUCMSD-134
+        }
 
         UPDATE opps;
     }
+
+    //SFEUCMSD-134 The Opportunity Close Date follows the Payment Date once it is populated or changed on a payment that is already paid, the latest date wins when several payments of one opportunity change together
+    public void updateOpportunityCloseDate(List<npe01__OppPayment__c> newRecords, Map<Id, npe01__OppPayment__c> oldRecords) {
+        if (newRecords == null || oldRecords == null) {
+            return;
+        }
+
+        Map<Id, Date> paymentDateByOpportunityId = new Map<Id, Date>();
+        for (npe01__OppPayment__c newRecord : newRecords) {
+            npe01__OppPayment__c oldRecord = oldRecords.get(newRecord.Id);
+            if (oldRecord == null || newRecord.npe01__Opportunity__c == null || newRecord.npe01__Payment_Date__c == null || newRecord.npe01__Payment_Date__c == oldRecord.npe01__Payment_Date__c) {
+                continue;
+            }
+            //SFEUCMSD-134 A payment being marked as Paid moves the opportunity to Closed Won, that update carries the Close Date because NPSP resets it when it is not changed in the same update
+            if (newRecord.npe01__Paid__c && (!oldRecord.npe01__Paid__c || oldRecord.status__c != 'Paid')) {
+                continue;
+            }
+            Date currentDate = paymentDateByOpportunityId.get(newRecord.npe01__Opportunity__c);
+            if (currentDate == null || newRecord.npe01__Payment_Date__c > currentDate) {
+                paymentDateByOpportunityId.put(newRecord.npe01__Opportunity__c, newRecord.npe01__Payment_Date__c);
+            }
+        }
+        if (paymentDateByOpportunityId.isEmpty()) {
+            return;
+        }
+
+        applyPaymentDates(paymentDateByOpportunityId);
+    }
+
+    //SFEUCMSD-134 Sets the Close Date and the trailing name date of each opportunity, the update is skipped when nothing changes
+    private static void applyPaymentDates(Map<Id, Date> paymentDateByOpportunityId) {
+        List<Opportunity> opportunitiesToUpdate = new List<Opportunity>();
+        for (Opportunity opp : [SELECT Id, Name, CloseDate FROM Opportunity WHERE Id IN :paymentDateByOpportunityId.keySet()]) {
+            Date paymentDate = paymentDateByOpportunityId.get(opp.Id);
+            //SFEUCMSD-134 Opportunity name override disabled, only the Close Date follows the Payment Date
+            //String newName = replaceTrailingNameDate(opp.Name, paymentDate);
+            if (opp.CloseDate != paymentDate) {
+                Opportunity opportunityToUpdate = new Opportunity(Id = opp.Id, CloseDate = paymentDate);
+                //if (opp.Name != newName) {
+                //    opportunityToUpdate.Name = newName;
+                //}
+                opportunitiesToUpdate.add(opportunityToUpdate);
+            }
+        }
+        if (!opportunitiesToUpdate.isEmpty()) {
+            UPDATE opportunitiesToUpdate;
+        }
+    }
+
+    //SFEUCMSD-134 Sets the latest paid Payment Date and its name date in memory, so the stage update to Closed Won carries them in the same DML and NPSP cannot reset the Close Date between two updates
+    public static void applyLatestPaymentDate(List<Opportunity> opportunities) {
+        if (opportunities == null || opportunities.isEmpty()) {
+            return;
+        }
+        Map<Id, Date> paymentDateByOpportunityId = new Map<Id, Date>();
+        for (AggregateResult result : [SELECT npe01__Opportunity__c oppId, MAX(npe01__Payment_Date__c) paymentDate FROM npe01__OppPayment__c
+                                       WHERE npe01__Opportunity__c IN :new Map<Id, Opportunity>(opportunities).keySet() AND npe01__Paid__c = true AND npe01__Payment_Date__c != null
+                                       GROUP BY npe01__Opportunity__c]) {
+            paymentDateByOpportunityId.put((Id) result.get('oppId'), (Date) result.get('paymentDate'));
+        }
+        for (Opportunity opportunity : opportunities) {
+            Date paymentDate = paymentDateByOpportunityId.get(opportunity.Id);
+            if (paymentDate != null) {
+                opportunity.CloseDate = paymentDate;
+                //SFEUCMSD-134 Opportunity name override disabled
+                //opportunity.Name = replaceTrailingNameDate(opportunity.Name, paymentDate);
+            }
+        }
+    }
+
+    //SFEUCMSD-134 A name ending with a dd/MM/yyyy or yyyy-MM-dd date gets the new date in the same format, any other name is returned as it is
+    @TestVisible
+    private static String replaceTrailingNameDate(String name, Date newDate) {
+        if (String.isBlank(name) || newDate == null) {
+            return name;
+        }
+        Integer index = name.lastIndexOf(' ');
+        if (index < 0) {
+            return name;
+        }
+        String lastToken = name.substring(index + 1);
+        Datetime newDatetime = Datetime.newInstance(newDate.year(), newDate.month(), newDate.day());
+        if (Pattern.matches('\\d{2}/\\d{2}/\\d{4}', lastToken)) {
+            return name.substring(0, index + 1) + newDatetime.format('dd/MM/yyyy');
+        }
+        if (Pattern.matches('\\d{4}-\\d{2}-\\d{2}', lastToken)) {
+            return name.substring(0, index + 1) + newDatetime.format('yyyy-MM-dd');
+        }
+        return name;
+    }
+
 }

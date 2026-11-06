@@ -21,10 +21,16 @@ public inherited sharing class UpdateOpportunityStatusesQueueable implements Que
             return;
         }
 
-        List<Opportunity> opportunities = [SELECT Id, StageName FROM Opportunity WHERE Id IN :statusByOpportunityId.keySet()];
+        List<Opportunity> opportunities = [SELECT Id, StageName, Name, CloseDate FROM Opportunity WHERE Id IN :statusByOpportunityId.keySet()]; //SFEUCMSD-134 Name and CloseDate are needed for the Payment Date
+        List<Opportunity> closedWonOpportunities = new List<Opportunity>();
         for (Opportunity opportunity : opportunities) {
             opportunity.StageName = statusByOpportunityId.get(opportunity.Id);
+            if (opportunity.StageName == 'Closed Won') {
+                closedWonOpportunities.add(opportunity);
+            }
         }
+        //SFEUCMSD-134 The Payment Date travels in the same update as the stage, a later update could be overwritten by NPSP async jobs
+        PaymentTriggerService.applyLatestPaymentDate(closedWonOpportunities);
 
         Database.SaveResult[] results = Database.update(opportunities, false);
         for (Database.SaveResult result : results) {

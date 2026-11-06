@@ -16,6 +16,7 @@ global class PaymentTriggerHandler_TDTM extends npsp.TDTM_Runnable {
             pay.checkPaidOption(newRecords, oldRecords);
         } else if (triggerAction == npsp.TDTM_Runnable.Action.AfterUpdate) {
             pay.checkPaymentsWithRDToNotify(newRecords, oldRecords);
+            pay.updateOpportunityCloseDate(newRecords, oldRecords); //SFEUCMSD-134
         }
 
         if (triggerAction == npsp.TDTM_Runnable.Action.AfterInsert ||
