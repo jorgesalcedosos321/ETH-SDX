@@ -72,9 +72,14 @@ private class GenerateHistoricOppsBatchTest { //SFESWCSD-113
     static void constructorsStartEmptyExecuteAndFinish_areCovered() {
         GenerateHistoricOppsBatch emptyBatch = new GenerateHistoricOppsBatch(null, null);
 
-        //SFESWCSD-113 Without ids every recurring donation is checked, so the query has no filter
-        System.assert(!emptyBatch.start(null).getQuery().containsIgnoreCase('WHERE'), 'A null parameter checks every recurring donation.');
-        System.assert(!new GenerateHistoricOppsBatch(new Set<Id>()).start(null).getQuery().containsIgnoreCase('WHERE'), 'An empty parameter checks every recurring donation.');
+        //SFESWCSD-113 Without ids every recurring donation is checked, so the query has no filter by id
+        //SFEUCMSD-130 only the active recurring donations are checked
+        String allQuery = emptyBatch.start(null).getQuery();
+        System.assert(allQuery.containsIgnoreCase('npsp__Status__c'), 'A null parameter checks every active recurring donation.');
+        System.assert(!allQuery.containsIgnoreCase('Id IN'), 'A null parameter must not filter by id.');
+        String emptySetQuery = new GenerateHistoricOppsBatch(new Set<Id>()).start(null).getQuery();
+        System.assert(emptySetQuery.containsIgnoreCase('npsp__Status__c'), 'An empty parameter checks every active recurring donation.');
+        System.assert(!emptySetQuery.containsIgnoreCase('Id IN'), 'An empty parameter must not filter by id.');
         emptyBatch.execute(null, new List<Id>());
         emptyBatch.finish(null);
 

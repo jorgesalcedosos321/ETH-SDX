@@ -42,13 +42,14 @@ global class GenerateHistoricOppsBatch implements Database.Batchable<SObject>, D
     }
 
     //SFESWCSD-113 When no ids are sent every recurring donation is checked
+    //SFEUCMSD-130 only active recurring donations are checked
     global Database.QueryLocator start(Database.BatchableContext bc) {
         if (recordIds.isEmpty()) {
             System.debug('####GenerateHistoricOppsBatch start recordIds is empty, processing all recurring donations');
-            return Database.getQueryLocator([SELECT Id FROM npe03__Recurring_Donation__c ORDER BY Id]);
+            return Database.getQueryLocator([SELECT Id FROM npe03__Recurring_Donation__c WHERE npsp__Status__c = 'Active' ORDER BY Id]);
         }
         System.debug('####GenerateHistoricOppsBatch start recordIds is not empty, processing ' + recordIds.size() + ' recurring donations');
-        return Database.getQueryLocator([SELECT Id FROM npe03__Recurring_Donation__c WHERE Id IN :recordIds ORDER BY Id]);
+        return Database.getQueryLocator([SELECT Id FROM npe03__Recurring_Donation__c WHERE npsp__Status__c = 'Active' AND Id IN :recordIds ORDER BY Id]);
     }
 
     //SFESWCSD-113
@@ -113,7 +114,8 @@ global class GenerateHistoricOppsBatch implements Database.Batchable<SObject>, D
                 opp.StageName = stageName; //SFESWCSD-113
                 opp.CloseDate = rdToCheck.npe03__Date_Established__c.addMonths(i); //oppsByRDMap.get(recordId).CloseDate.addMonths(i);
                 opp.CloseDate = Date.newInstance(opp.CloseDate.year(), opp.CloseDate.month(), dayOfMonth);
-                opp.Name = oppsByRDMap.get(recordId).Name.substringBefore(keyWord) + ' ' + keyWord + ' ' + Datetime.newInstance(opp.CloseDate.year(),opp.CloseDate.month(),opp.CloseDate.day()).format('yyyy-MM-dd');
+                //opp.Name = oppsByRDMap.get(recordId).Name.substringBefore(keyWord) + ' ' + keyWord + ' ' + Datetime.newInstance(opp.CloseDate.year(),opp.CloseDate.month(),opp.CloseDate.day()).format('yyyy-MM-dd');
+                opp.Name = oppsByRDMap.get(recordId).Name.substringBefore(keyWord) + ' ' + keyWord + ' ' + Datetime.newInstance(opp.CloseDate.year(),opp.CloseDate.month(),opp.CloseDate.day()).format('dd/MM/yyyy'); //SFESWCSD-113 name date as dd/MM/yyyy, same as CreateNextOpportunityBatch
                 System.debug('####Opp ' + opp);
                 newOpps.add(opp);
             }
