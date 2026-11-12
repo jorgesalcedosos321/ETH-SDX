@@ -328,54 +328,39 @@ private class SendEmailNotificationBatchTest {
         return opportunity;
     }
 
-    //SFESWCSD-85 case 5
+    //SFESWCSD-85 case 5 only sponsorships established exactly one year ago, and only the donor's first one
     @isTest
-    static void selectsOnlyTheFirstSponsorshipOnItsAnniversary() {
+    static void selectsOnlyTheFirstSponsorshipOnItsFirstAnniversary() {
         Contact contact = [SELECT Id FROM Contact WHERE Email != null LIMIT 1];
-        npe03__Recurring_Donation__c firstSponsorship =
+        npe03__Recurring_Donation__c olderSponsorship =
             createSponsorship(contact.Id);
-        npe03__Recurring_Donation__c laterSponsorship =
+        npe03__Recurring_Donation__c oneYearSponsorship =
             createSponsorship(contact.Id);
+        olderSponsorship.npe03__Date_Established__c = Date.today().addYears(-2);
+        oneYearSponsorship.npe03__Date_Established__c = Date.today().addYears(-1);
+        UPDATE new List<npe03__Recurring_Donation__c>{ olderSponsorship, oneYearSponsorship };
 
-        firstSponsorship.npe03__Date_Established__c = Date.today().addYears(-2);
-        UPDATE firstSponsorship;
-        Test.setCreatedDate(
-            firstSponsorship.Id,
-            Datetime.newInstance(
-                Date.today().addYears(-2),
-                Time.newInstance(10, 0, 0, 0)
-            )
-        );
-        Test.setCreatedDate(
-            laterSponsorship.Id,
-            Datetime.newInstance(
-                Date.today().addYears(-1),
-                Time.newInstance(10, 0, 0, 0)
-            )
-        );
+        List<sObject> candidates = anniversaryCandidates();
+        Set<Id> candidateIds = new Map<Id, sObject>(candidates).keySet();
+        System.assert(candidateIds.contains(oneYearSponsorship.Id), 'A sponsorship established one year ago is selected.');
+        System.assert(!candidateIds.contains(olderSponsorship.Id), 'A sponsorship established two years ago is not selected.');
 
-        laterSponsorship.npe03__Date_Established__c = Date.today().addYears(-1);
-        UPDATE laterSponsorship;
+        Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(Utils.ANNIVERSARY_EMAIL_1, candidates, null);
+        System.assert(!targets.containsKey(contact.Id), 'No email when the one-year sponsorship is not the first one of the donor.');
 
-        SendEmailNotificationBatch batch = new SendEmailNotificationBatch(
-            Utils.ANNIVERSARY_EMAIL_1
-        );
-        Database.QueryLocatorIterator records = batch.start(null).iterator();
+        DELETE olderSponsorship;
+        targets = SendEmailNotificationBatch.buildTargets(Utils.ANNIVERSARY_EMAIL_1, anniversaryCandidates(), null);
+        System.assertEquals(oneYearSponsorship.Id, targets.get(contact.Id), 'The first sponsorship of the donor gets the email on its first anniversary.');
+    }
+
+    //SFESWCSD-85
+    private static List<sObject> anniversaryCandidates() {
+        Database.QueryLocatorIterator records = new SendEmailNotificationBatch(Utils.ANNIVERSARY_EMAIL_1).start(null).iterator();
         List<sObject> candidates = new List<sObject>();
         while (records.hasNext()) {
             candidates.add(records.next());
         }
-
-        Datetime testStartDate = Datetime.newInstance(Date.today().addMonths(-1), Time.newInstance(12, 0, 0, 0));
-        
-        Map<Id, Id> targets = SendEmailNotificationBatch.buildTargets(
-            Utils.ANNIVERSARY_EMAIL_1,
-            candidates, 
-            testStartDate
-        );
-
-        System.assertEquals(1, targets.size());
-        System.assertEquals(firstSponsorship.Id, targets.get(contact.Id));
+        return candidates;
     }
 
     @isTest

@@ -6,6 +6,7 @@
 //System.schedule('REMINDER_1 - Monthly', '0 0 0 1 * ?', new SendEmailNotificationBatch(Utils.REMINDER_1));
 //SFESWCSD-85 case 9, case 10: REMINDER_2 and REMINDER_3 are no longer scheduled; OpportunityService.sendMissedReminderEmails sends them when an Opportunity changes to Missed
 //Run once to check daily for one-time donations created one month ago:
+
 //System.schedule('ONE_TIME_DONORS_LE - Daily', '0 0 0 * * ?', new SendEmailNotificationBatch(Utils.ONE_TIME_DONORS_LE));
 global class SendEmailNotificationBatch implements Database.Batchable<sObject>, Schedulable {
     global Datetime testStartDate = NULL;
@@ -36,7 +37,8 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
             ]);
         //SFESWCSD-85 case 5
         } else if (templateKey == Utils.ANNIVERSARY_EMAIL_1) {
-            Date currentYearStart = testStartDate != null ? testStartDate.date().addDays(1) : Date.newInstance(today.year(), 1, 1);
+            //SFESWCSD-85 only sponsorships established exactly one year ago (first anniversary)
+            Date oneYearAgo = (testStartDate != null ? testStartDate.date() : today).addYears(-1);
 
             //Changed by Marina excel 07092026
             //npe03__Date_Established__c instead of CreatedDate because we want to send the email on the anniversary of the donation, not when it was created in Salesforce.
@@ -45,9 +47,7 @@ global class SendEmailNotificationBatch implements Database.Batchable<sObject>, 
                 FROM npe03__Recurring_Donation__c
                 WHERE Donation_Type__c = :ApiConstants.DONATION_SPONSORSHIP
                 AND npe03__Contact__c != null
-                AND CALENDAR_MONTH(npe03__Date_Established__c) = :today.month()
-                AND DAY_IN_MONTH(npe03__Date_Established__c) = :today.day()
-                AND npe03__Date_Established__c < :currentYearStart
+                AND npe03__Date_Established__c = :oneYearAgo
             ]);
         //SFESWCSD-85 case 7
         } else if (templateKey == Utils.END_OF_YEAR_REPORT_P) {
