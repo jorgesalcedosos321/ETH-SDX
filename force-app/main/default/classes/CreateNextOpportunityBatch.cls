@@ -9,7 +9,8 @@ global class CreateNextOpportunityBatch implements Database.Batchable<sObject>,S
     
 	global Database.QueryLocator start(Database.BatchableContext BC){
         system.debug('##start CreateNextOpportunityBatch');
-		return Database.getQueryLocator([SELECT Id FROM npe03__Recurring_Donation__c WHERE npe03__Open_Ended_Status__c = 'Open']);
+        //SFEUCMSD-130 only active recurring donations get a next opportunity, the closed ones do not
+		return Database.getQueryLocator([SELECT Id FROM npe03__Recurring_Donation__c WHERE npsp__Status__c = 'Active']);
     }
     
     global void execute(Database.BatchableContext BC, List<npe03__Recurring_Donation__c> scope){

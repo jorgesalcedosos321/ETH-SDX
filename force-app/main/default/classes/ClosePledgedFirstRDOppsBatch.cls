@@ -6,15 +6,26 @@ global with sharing class ClosePledgedFirstRDOppsBatch implements Database.Batch
     global ClosePledgedFirstRDOppsBatch() {
     }
 
+    //SFEUCMSD-130 Scope of 1 keeps closing an RD to a single queueable per transaction, which is the limit from batch execute
+    global static final Integer BATCH_SIZE = 1;
+
+    //SFEUCMSD-130 First installments created more than this many hours ago are left untouched
+    @TestVisible
+    private static final Integer OLDEST_CREATED_HOURS = 48;
+
     //SFEUCMSD-130
     global void execute(SchedulableContext sc) {
-        Database.executeBatch(this, 100);
+        Database.executeBatch(this, BATCH_SIZE);
     }
 
     //SFEUCMSD-130
     global Database.QueryLocator start(Database.BatchableContext BC) {
         Datetime cutoff = Datetime.now().addHours(-24);
-        return Database.getQueryLocator([SELECT Id, npe03__Recurring_Donation__c FROM Opportunity WHERE StageName = 'Pledged' AND npe03__Recurring_Donation__c != NULL AND npsp__Recurring_Donation_Installment_Number__c = 1 AND CreatedDate <=: cutoff]);
+        //SFEUCMSD-130 Only first installments created between 24 and 48 hours ago, so older donations are never closed in bulk
+        Datetime oldestCreated = Datetime.now().addHours(-OLDEST_CREATED_HOURS);
+        //BUG_EXCEPTION Recurring donations of the F2F campaign are excluded from this batch
+        //SFEUCMSD-130 CreatedDate lower bound added
+        return Database.getQueryLocator([SELECT Id, npe03__Recurring_Donation__c FROM Opportunity WHERE StageName = 'Pledged' AND npe03__Recurring_Donation__c != NULL AND npe03__Recurring_Donation__r.Current_Campaign_Name__c != 'F2F' AND npsp__Recurring_Donation_Installment_Number__c = 1 AND CreatedDate <=: cutoff AND CreatedDate >: oldestCreated]);
     }
 
     //SFEUCMSD-130
