@@ -430,6 +430,14 @@ public class Utils {
         else return false;
     }    
     
+    //SFESWCSD-92: builds the "Authorization" header value ("Basic <base64(key:secret)>") for OAuth client-credentials token requests
+    public static String buildBasicAuthHeader(String consumerKey, String consumerSecret) {
+        if (String.isBlank(consumerKey) || String.isBlank(consumerSecret)) {
+            throw new IllegalArgumentException('Consumer key and secret are required.');
+        }
+        return 'Basic ' + EncodingUtil.base64Encode(Blob.valueOf(consumerKey + ':' + consumerSecret));
+    }
+
     public static void printQueryDebug(String queryToExecute) {
         Integer maxLength = 400;
         if (queryToExecute.length() > maxLength) {

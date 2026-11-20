@@ -338,4 +338,16 @@ public class UtilsTest {
         System.assertEquals('Corporate Donor Ltd', tokens.get(account.Id).get(Utils.NAME_FOR_EMAIL_TOKEN));
         System.assert(Utils.buildNameForEmailTokens(null).isEmpty());
     }
+
+    //SFESWCSD-92
+    @isTest
+    static void testBuildBasicAuthHeader() {
+        System.assertEquals('Basic dXNlcjpwYXNz', Utils.buildBasicAuthHeader('user', 'pass'));
+        try {
+            Utils.buildBasicAuthHeader('user', '');
+            System.assert(false, 'Expected IllegalArgumentException');
+        } catch (IllegalArgumentException e) {
+            System.assert(e.getMessage().contains('required'));
+        }
+    }
 }
