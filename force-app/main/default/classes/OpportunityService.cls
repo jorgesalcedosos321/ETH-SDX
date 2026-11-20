@@ -120,6 +120,7 @@ public class OpportunityService implements IOpportunityService {
         opp.StageName = ApiConstants.STAGE_PLEDGED;
         opp.CloseDate = Date.today();
         opp.Amount = request.amount;
+        opp.Donation_ID__c = request.donationId; //SFESWCSD-92 Kentico donationId, used by ArifPay to track the donation
 
         Id campaignId = CampaignService.getCampaignId(request);
 
@@ -162,6 +163,7 @@ public class OpportunityService implements IOpportunityService {
         // opp.Sponsorship_ID__c = request.sponsorshipId;
         //opp.Sponsorship_Type__c = request.sponsorshipType;
         opp.npe03__Recurring_Donation__c = recurringDonationId;
+        opp.Donation_ID__c = request.donationId; //SFESWCSD-92 Kentico donationId, used by ArifPay to track the donation
 		return opp;
     }
 

@@ -129,6 +129,7 @@ public class RecurringDonationService implements IRecurringDonationService {
 
         if (recurringDonation != null) {
             opportunity.npsp__Primary_Contact__c = contact.Id;
+            opportunity.Donation_ID__c = request.donationId; //SFESWCSD-92 Kentico donationId, used by ArifPay to track the donation
             update opportunity;
         }
 
@@ -177,8 +178,9 @@ public class RecurringDonationService implements IRecurringDonationService {
         
         Opportunity opportunity = getGeneratedOpportunity(recurringDonation.Id);
         opportunity.npsp__Primary_Contact__c = contact.Id;
+        opportunity.Donation_ID__c = request.donationId; //SFESWCSD-92 Kentico donationId, used by ArifPay to track the donation
         update opportunity;
-        
+
         DonationResponse response = new DonationResponse();
         response.success = true;
         response.status = ApiConstants.STATUS_SUCCESS;

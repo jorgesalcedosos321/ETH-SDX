@@ -102,6 +102,30 @@ private class CallbackServiceTest {
         System.assert(thrown, 'Unknown UUID raises a DonationException');
     }
 
+    //SFESWCSD-92 the Kentico donationId on the Opportunity finds the donation, recurringUUID is only the fallback
+    @IsTest
+    static void donationIdFindsTheRecurringDonation() {
+        Opportunity opp = [SELECT Id, npe03__Recurring_Donation__c FROM Opportunity WHERE Name = 'Callback Opp 4'];
+        opp.Donation_ID__c = 'KENTICO-DONATION-1';
+        update opp;
+
+        ArifPayCallbackRequest req = request('SUCCESS');
+        req.donationId = 'KENTICO-DONATION-1';
+        req.recurringUUID = 'does-not-exist';
+        List<npe03__Recurring_Donation__c> found = CallbackService.findRecurringDonation(req);
+        System.assertEquals(1, found.size(), 'The donationId finds the recurring donation');
+        System.assertEquals(opp.npe03__Recurring_Donation__c, found[0].Id);
+
+        req.donationId = 'UNKNOWN-DONATION';
+        req.recurringUUID = UUID;
+        found = CallbackService.findRecurringDonation(req);
+        System.assertEquals(opp.npe03__Recurring_Donation__c, found[0].Id, 'An unknown donationId falls back to recurringUUID');
+
+        req.donationId = null;
+        req.recurringUUID = null;
+        System.assert(CallbackService.findRecurringDonation(req).isEmpty(), 'Without donationId and recurringUUID nothing is found');
+    }
+
     @IsTest
     static void callbackWithoutDuePaymentOnlyAcknowledges() {
         ArifPayCallbackRequest req = request('SUCCESS');

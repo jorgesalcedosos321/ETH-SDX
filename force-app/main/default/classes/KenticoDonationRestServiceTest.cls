@@ -45,6 +45,8 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(donor.Id, donation.AccountId);
         assertCorporateContactData(request, donor.Id, primaryContact);
         Assert.areEqual(primaryContact.Id, donation.npsp__Primary_Contact__c);
+        //SFESWCSD-92 the Kentico donationId is kept on the Opportunity for ArifPay tracking
+        Assert.areEqual(request.donationId, [SELECT Donation_ID__c FROM Opportunity WHERE Id = :donation.Id].Donation_ID__c);
         Assert.areEqual(
             1,
             [
@@ -70,7 +72,7 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual(200, RestContext.response.statusCode, responseBody());
         DonationResponse donationResponse = response();
         Opportunity generatedOpportunity = [
-            SELECT Id, npe03__Recurring_Donation__r.Donation_Id__c
+            SELECT Id, Donation_ID__c, npe03__Recurring_Donation__r.Donation_Id__c
             FROM Opportunity
             WHERE Id = :donationResponse.donationId
         ];
@@ -79,6 +81,8 @@ private class KenticoDonationRestServiceTest {
             request.donationGuid,
             generatedOpportunity.npe03__Recurring_Donation__r.Donation_Id__c
         );
+        //SFESWCSD-92 the Kentico donationId is kept on the Opportunity for ArifPay tracking
+        Assert.areEqual(request.donationId, generatedOpportunity.Donation_ID__c);
         Assert.areEqual(
             1,
             [
@@ -126,6 +130,8 @@ private class KenticoDonationRestServiceTest {
         Assert.areEqual('020-502-0001', recurringDonation.Sponsorship_ID__c);
         assertCorporateContactData(request, donor.Id, primaryContact);
         Assert.areEqual(primaryContact.Id, donation.npsp__Primary_Contact__c);
+        //SFESWCSD-92 the Kentico donationId is kept on the Opportunity for ArifPay tracking
+        Assert.areEqual(request.donationId, [SELECT Donation_ID__c FROM Opportunity WHERE Id = :donation.Id].Donation_ID__c);
 
     }
 

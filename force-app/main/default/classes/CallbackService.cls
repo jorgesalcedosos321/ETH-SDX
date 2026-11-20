@@ -2,6 +2,33 @@
  * Service responsible for processing ArifPay callbacks.
  */
 public inherited sharing class CallbackService {
+    //SFESWCSD-92 ArifPay tracks the donation by the Kentico donationId (saved on the Opportunity Donation ID);
+    //recurringUUID (Recurring Donation Donation ID) stays as fallback for donations registered before this change
+    @TestVisible
+    private static List<npe03__Recurring_Donation__c> findRecurringDonation(ArifPayCallbackRequest request) {
+        if (String.isNotBlank(request.donationId)) {
+            List<Opportunity> opportunities = [
+                SELECT npe03__Recurring_Donation__c
+                FROM Opportunity
+                WHERE Donation_ID__c = :request.donationId
+                AND npe03__Recurring_Donation__c != NULL
+                ORDER BY CreatedDate ASC
+                LIMIT 1
+            ];
+            if (!opportunities.isEmpty()) {
+                return [SELECT Id FROM npe03__Recurring_Donation__c WHERE Id = :opportunities[0].npe03__Recurring_Donation__c];
+            }
+        }
+        if (String.isBlank(request.recurringUUID)) {
+            return new List<npe03__Recurring_Donation__c>();
+        }
+        return [
+            SELECT Id
+            FROM npe03__Recurring_Donation__c
+            WHERE Donation_ID__c = :request.recurringUUID
+        ];
+    }
+
     /**
      * Processes a payment callback.
      */
@@ -10,11 +37,7 @@ public inherited sharing class CallbackService {
         ArifPayCallbackRequest request
     ) {
 
-        List<npe03__Recurring_Donation__c> recurringDonations = [
-            SELECT Id
-            FROM npe03__Recurring_Donation__c
-            WHERE Donation_ID__c = :request.recurringUUID
-        ];
+        List<npe03__Recurring_Donation__c> recurringDonations = findRecurringDonation(request);
 
         if (recurringDonations.isEmpty()) {
             throw new DonationException(
