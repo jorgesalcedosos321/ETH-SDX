@@ -17,6 +17,10 @@ public inherited sharing class UpdateOpportunityStatusesQueueable implements Que
                 statusByOpportunityId.put(opportunityId, status);
             }
         }
+        //SFEUCMSD-146 Opportunities whose payments changed again after this job was queued keep their current stage
+        for (Id outdatedOpportunityId : PaymentTriggerService.getOpportunitiesWithOutdatedStage(statusByOpportunityId)) {
+            statusByOpportunityId.remove(outdatedOpportunityId);
+        }
         if (statusByOpportunityId.isEmpty()) {
             return;
         }

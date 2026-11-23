@@ -15,6 +15,22 @@ global class UpdateOpportunityStatusesBatch implements Database.Stateful, Databa
     }
     
     global void execute(Database.BatchableContext BC, List<Opportunity> scope) {
+        //SFEUCMSD-146 Opportunities whose payments changed again after this job was queued keep their current stage
+        Map<Id, String> stageByOpportunityId = new Map<Id, String>();
+        for (Opportunity opp : scope) {
+            stageByOpportunityId.put(opp.Id, status);
+        }
+        Set<Id> outdatedOpportunityIds = PaymentTriggerService.getOpportunitiesWithOutdatedStage(stageByOpportunityId);
+        List<Opportunity> currentScope = new List<Opportunity>();
+        for (Opportunity opp : scope) {
+            if (!outdatedOpportunityIds.contains(opp.Id)) {
+                currentScope.add(opp);
+            }
+        }
+        scope = currentScope;
+        if (scope.isEmpty()) {
+            return;
+        }
         for (Opportunity pay : scope) {
             pay.StageName = status;
         }

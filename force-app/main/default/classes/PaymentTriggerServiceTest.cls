@@ -139,7 +139,327 @@ private class PaymentTriggerServiceTest {
     //SFEUCMSD-134 The TDTM handler does not run in test context, so the handler is called directly with the old and new versions of the payment
     private static npe01__OppPayment__c runHandler(npsp.TDTM_Runnable.Action action, npe01__OppPayment__c oldPayment, npe01__OppPayment__c newPayment) {
         new PaymentTriggerHandler_TDTM().run(new List<npe01__OppPayment__c>{ newPayment }, new List<npe01__OppPayment__c>{ oldPayment }, action, npe01__OppPayment__c.SObjectType.getDescribe());
+        //SFEUCMSD-146 A before update is followed by the save, the queued stage jobs compare the stage with the stored payment
+        if (action == npsp.TDTM_Runnable.Action.BeforeUpdate) {
+            UPDATE newPayment;
+        }
         return newPayment;
+    }
+
+    //SFEUCMSD-146 Stores payment field values without running the handler, as a previous save would have left them
+    private static npe01__OppPayment__c storePayment(Id oppId, Boolean paid, Boolean writtenOff, String status, Decimal failedAttempts) {
+        npe01__OppPayment__c payment = getFirstPayment(oppId);
+        payment.npe01__Paid__c = paid;
+        payment.npe01__Written_Off__c = writtenOff;
+        payment.status__c = status;
+        payment.npe01__Payment_Date__c = paid ? Date.today().addDays(-2) : null;
+        payment.Failed_Payment_Attempts__c = failedAttempts;
+        UPDATE payment;
+        return getFirstPayment(oppId);
+    }
+
+    //SFEUCMSD-146
+    private static void setStage(Id oppId, String stage) {
+        UPDATE new Opportunity(Id = oppId, StageName = stage);
+    }
+
+    //SFEUCMSD-146
+    private static String getStage(Id oppId) {
+        return [SELECT StageName FROM Opportunity WHERE Id = :oppId].StageName;
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void writtenOffTrue_marksPaymentFailedAndDeclinesOpportunity() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, false, false, 'Pending', null);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Written_Off__c = true;
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.areEqual('Failed', newPayment.status__c, 'Written Off must set the payment status to Failed.');
+        Assert.isFalse(newPayment.npe01__Paid__c, 'A written off payment must not be paid.');
+        Assert.isNull(newPayment.npe01__Payment_Date__c, 'A written off payment must not keep a Payment Date.');
+        Assert.isTrue(newPayment.npe01__Written_Off__c, 'Written Off must stay ticked.');
+        Assert.areEqual('Declined', getStage(opp.Id), 'Written Off must decline the opportunity of a recurring donation.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void writtenOffTrue_onPaidPayment_deactivatesPaidAndDeclinesOpportunity() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, true, false, 'Paid', null);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Written_Off__c = true;
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.isFalse(newPayment.npe01__Paid__c, 'Written Off must untick Paid.');
+        Assert.areEqual('Failed', newPayment.status__c, 'Written Off must set the payment status to Failed.');
+        Assert.isNull(newPayment.npe01__Payment_Date__c, 'Written Off must clear the Payment Date.');
+        Assert.areEqual('Declined', getStage(opp.Id), 'Written Off must decline the opportunity.');
+    }
+
+    //SFEUCMSD-146 The ArifPay retries move earlier installments to Missed and write their payments off, that stage must be kept
+    @isTest
+    public static void writtenOffTrue_onMissedOpportunity_keepsMissedStage() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        setStage(opp.Id, 'Missed');
+        npe01__OppPayment__c oldPayment = getFirstPayment(opp.Id);
+        oldPayment.npe01__Written_Off__c = false;
+        oldPayment.status__c = 'Pending';
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Written_Off__c = true;
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.areEqual('Failed', newPayment.status__c, 'Written Off must set the payment status to Failed.');
+        Assert.areEqual('Missed', getStage(opp.Id), 'An opportunity that is already Missed must keep its stage.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void statusFailedWithWrittenOff_keepsWrittenOffOnFirstRetry() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, false, false, 'Pending', 1);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.status__c = 'Failed';
+        newPayment.npe01__Written_Off__c = true;
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.isTrue(newPayment.npe01__Written_Off__c, 'Written Off ticked together with Failed must stay ticked even before the 3rd attempt.');
+        Assert.areEqual('Declined', getStage(opp.Id), 'A failed payment must decline the opportunity.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void statusFailedOnFirstRetry_keepsPaymentOpenForRetries() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, false, false, 'Pending', 1);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.status__c = 'Failed';
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.isFalse(newPayment.npe01__Written_Off__c, 'The first failed attempt must keep the payment open for the retries.');
+        Assert.areEqual('Declined', getStage(opp.Id), 'A failed payment that is not written off must still decline the opportunity.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void writtenOffFalse_afterFailed_returnsPaymentToPendingAndOpportunityToPledged() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        setStage(opp.Id, 'Declined');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, false, true, 'Failed', null);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Written_Off__c = false;
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.areEqual('Pending', newPayment.status__c, 'Unticking Written Off must return the payment to Pending.');
+        Assert.isNull(newPayment.npe01__Payment_Date__c, 'A pending payment must not keep a Payment Date.');
+        Assert.areEqual('Pledged', getStage(opp.Id), 'Unticking Written Off must return the opportunity to Pledged.');
+        npe01__OppPayment__c storedPayment = getFirstPayment(opp.Id);
+        Assert.isFalse(storedPayment.npe01__Written_Off__c, 'The saved payment must stay unticked once the opportunity is Pledged.');
+        Assert.areEqual('Pending', storedPayment.status__c, 'The saved payment must stay Pending.');
+    }
+
+    //SFEUCMSD-146 An ArifPay retry clears Written Off and counts the attempt, the payment stays Failed
+    @isTest
+    public static void writtenOffFalse_onRetryAttempt_keepsFailedStatusAndStage() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        setStage(opp.Id, 'Declined');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, false, true, 'Failed', 1);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Written_Off__c = false;
+        newPayment.Failed_Payment_Attempts__c = 2;
+
+        Test.startTest();
+        new PaymentTriggerService().checkPaidOption(new List<npe01__OppPayment__c>{ newPayment }, new Map<Id, npe01__OppPayment__c>{ oldPayment.Id => oldPayment });
+        Test.stopTest();
+
+        Assert.areEqual('Failed', newPayment.status__c, 'A retry attempt must keep the payment Failed.');
+        Assert.areEqual('Declined', getStage(opp.Id), 'A retry attempt must not move the opportunity to Pledged.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void paidFalse_afterPaid_returnsPaymentToPendingAndOpportunityToPledged() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        setStage(opp.Id, 'Closed Won');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, true, false, 'Paid', null);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Paid__c = false;
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.areEqual('Pending', newPayment.status__c, 'Unticking Paid must return the payment to Pending.');
+        Assert.isNull(newPayment.npe01__Payment_Date__c, 'Unticking Paid must clear the Payment Date.');
+        Assert.isFalse(newPayment.npe01__Written_Off__c, 'Unticking Paid must not write the payment off.');
+        Assert.areEqual('Pledged', getStage(opp.Id), 'Unticking Paid must return the opportunity to Pledged.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void writtenOffUnchanged_keepsPaymentAndOpportunityStage() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        npe01__OppPayment__c oldPayment = storePayment(opp.Id, false, false, 'Pending', null);
+        npe01__OppPayment__c newPayment = oldPayment.clone(true, false, false, false);
+        newPayment.npe01__Payment_Method__c = 'Cash';
+
+        Test.startTest();
+        runHandler(npsp.TDTM_Runnable.Action.BeforeUpdate, oldPayment, newPayment);
+        Test.stopTest();
+
+        Assert.areEqual('Pending', newPayment.status__c, 'An unrelated change must keep the payment Pending.');
+        Assert.areEqual('Pledged', getStage(opp.Id), 'An unrelated change must keep the opportunity Pledged.');
+    }
+
+    //SFEUCMSD-146
+    private static void syncStage(Id oppId, String oldStage, String newStage) {
+        Opportunity oldOpp = new Opportunity(Id = oppId, StageName = oldStage);
+        Opportunity newOpp = new Opportunity(Id = oppId, StageName = newStage);
+        new OpportunityService().syncPaymentsWithStage(new List<Opportunity>{ newOpp }, new Map<Id, Opportunity>{ oppId => oldOpp });
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void opportunityClosedWon_marksPaymentsPaid() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, false, false, 'Pending', null);
+
+        Test.startTest();
+        syncStage(opp.Id, 'Pledged', 'Closed Won');
+        Test.stopTest();
+
+        npe01__OppPayment__c payment = getFirstPayment(opp.Id);
+        Assert.isTrue(payment.npe01__Paid__c, 'Closed Won must tick Paid.');
+        Assert.areEqual('Paid', payment.status__c, 'Closed Won must set the status to Paid.');
+        Assert.areEqual(Date.today(), payment.npe01__Payment_Date__c, 'An empty Payment Date must default to today.');
+        Assert.isFalse(payment.npe01__Written_Off__c, 'Closed Won must untick Written Off.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void opportunityDeclined_writesOffPayments() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, true, false, 'Paid', null);
+
+        Test.startTest();
+        syncStage(opp.Id, 'Closed Won', 'Declined');
+        Test.stopTest();
+
+        npe01__OppPayment__c payment = getFirstPayment(opp.Id);
+        Assert.isFalse(payment.npe01__Paid__c, 'Declined must untick Paid.');
+        Assert.isTrue(payment.npe01__Written_Off__c, 'Declined must tick Written Off.');
+        Assert.areEqual('Failed', payment.status__c, 'Declined must set the status to Failed.');
+        Assert.isNull(payment.npe01__Payment_Date__c, 'Declined must clear the Payment Date.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void opportunityPledged_afterClosedWon_returnsPaymentsToPending() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, true, false, 'Paid', null);
+
+        Test.startTest();
+        syncStage(opp.Id, 'Closed Won', 'Pledged');
+        Test.stopTest();
+
+        npe01__OppPayment__c payment = getFirstPayment(opp.Id);
+        Assert.isFalse(payment.npe01__Paid__c, 'Pledged must untick Paid.');
+        Assert.isFalse(payment.npe01__Written_Off__c, 'Pledged must untick Written Off.');
+        Assert.areEqual('Pending', payment.status__c, 'Pledged must set the status to Pending.');
+        Assert.isNull(payment.npe01__Payment_Date__c, 'Pledged must clear the Payment Date.');
+    }
+
+    //SFEUCMSD-146 Missed is managed by the ArifPay retries and is not mirrored on the payments
+    @isTest
+    public static void opportunityMissed_keepsPayments() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, false, false, 'Failed', 1);
+
+        Test.startTest();
+        syncStage(opp.Id, 'Declined', 'Missed');
+        Test.stopTest();
+
+        npe01__OppPayment__c payment = getFirstPayment(opp.Id);
+        Assert.areEqual('Failed', payment.status__c, 'Missed must not change the payment status.');
+        Assert.areEqual(1, payment.Failed_Payment_Attempts__c, 'Missed must not change the failed attempts.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void applyStageToPayment_closedWonKeepsExistingPaymentDate() {
+        Date paymentDate = Date.today().addDays(-10);
+        npe01__OppPayment__c payment = new npe01__OppPayment__c(npe01__Paid__c = false, npe01__Written_Off__c = true, status__c = 'Failed', npe01__Payment_Date__c = paymentDate);
+
+        Assert.isTrue(PaymentTriggerService.applyStageToPayment(payment, 'Closed Won'), 'A written off payment must change for Closed Won.');
+        Assert.areEqual(paymentDate, payment.npe01__Payment_Date__c, 'An existing Payment Date must be kept.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void applyStageToPayment_ignoresOtherStagesAndUnchangedPayments() {
+        npe01__OppPayment__c payment = new npe01__OppPayment__c(npe01__Paid__c = false, npe01__Written_Off__c = false, status__c = 'Pending');
+
+        Assert.isFalse(PaymentTriggerService.applyStageToPayment(payment, 'Missed'), 'Missed must not change the payment.');
+        Assert.isFalse(PaymentTriggerService.applyStageToPayment(payment, 'Pledged'), 'A pending payment must not change for Pledged.');
+    }
+
+    //SFEUCMSD-146 A stage job queued before the payment changed again must not overwrite the newer stage
+    @isTest
+    public static void outdatedLostBatch_keepsPendingPaymentAndPledgedStage() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, false, false, 'Pending', null);
+
+        Test.startTest();
+        Database.executeBatch(new UpdateOpportunityStatusesBatch(new Set<Id>{ opp.Id }, 'Declined'));
+        Test.stopTest();
+
+        Assert.areEqual('Pledged', getStage(opp.Id), 'An outdated Declined job must keep the opportunity Pledged.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void outdatedLostQueueable_keepsPendingPaymentAndPledgedStage() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, false, false, 'Pending', null);
+
+        Test.startTest();
+        System.enqueueJob(new UpdateOpportunityStatusesQueueable(new Map<String, Set<Id>>{ 'Closed Lost' => new Set<Id>{ opp.Id } }));
+        Test.stopTest();
+
+        Assert.areEqual('Pledged', getStage(opp.Id), 'An outdated Closed Lost job must keep the opportunity Pledged.');
+    }
+
+    //SFEUCMSD-146
+    @isTest
+    public static void getOpportunitiesWithOutdatedStage_checksEveryStage() {
+        Opportunity opp = createDonationOpp('Donor Donation 2026-11-05');
+        storePayment(opp.Id, false, false, 'Failed', 1);
+
+        Assert.isTrue(PaymentTriggerService.getOpportunitiesWithOutdatedStage(new Map<Id, String>{ opp.Id => 'Closed Won' }).contains(opp.Id), 'An unpaid payment makes Closed Won outdated.');
+        Assert.isFalse(PaymentTriggerService.getOpportunitiesWithOutdatedStage(new Map<Id, String>{ opp.Id => 'Declined' }).contains(opp.Id), 'A Failed payment on a retry still matches Declined.');
+        Assert.isFalse(PaymentTriggerService.getOpportunitiesWithOutdatedStage(new Map<Id, String>{ opp.Id => 'Pledged' }).contains(opp.Id), 'A payment that is neither paid nor written off matches Pledged.');
+        Assert.isFalse(PaymentTriggerService.getOpportunitiesWithOutdatedStage(new Map<Id, String>{ opp.Id => 'Missed' }).contains(opp.Id), 'Any other stage always matches.');
+        Assert.isTrue(PaymentTriggerService.getOpportunitiesWithOutdatedStage(null).isEmpty(), 'No input returns no opportunity.');
     }
 
     //SFEUCMSD-134

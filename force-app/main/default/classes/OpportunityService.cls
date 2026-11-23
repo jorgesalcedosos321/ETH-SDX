@@ -1084,4 +1084,9 @@ public class OpportunityService implements IOpportunityService {
         }
         return null;
     }
+
+    //SFEUCMSD-146 Payments follow the opportunity stage when it changes to Pledged, Closed Won, Declined or Closed Lost
+    public void syncPaymentsWithStage(List<Opportunity> newRecords, Map<Id, Opportunity> oldRecords) {
+        PaymentTriggerService.syncPaymentsWithOpportunityStage(PaymentTriggerService.getStagesToSync(newRecords, oldRecords));
+    }
 }

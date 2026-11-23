@@ -280,8 +280,9 @@ private class CallbackServiceTest {
 
     @IsTest
     static void paymentHandlerDispatchesEveryTriggerAction() {
+        //SFEUCMSD-146 The payment trigger also reads Written Off and the failed attempts, as a real trigger record carries every field
         List<npe01__OppPayment__c> payments = [
-            SELECT Id, npe01__Opportunity__c, npe01__Paid__c, npe01__Payment_Date__c, npe01__Payment_Amount__c, Status__c
+            SELECT Id, npe01__Opportunity__c, npe01__Paid__c, npe01__Payment_Date__c, npe01__Payment_Amount__c, Status__c, npe01__Written_Off__c, Failed_Payment_Attempts__c, npe01__Payment_Method__c, is_OneOff_Donation__c
             FROM npe01__OppPayment__c
         ];
         PaymentTriggerHandler_TDTM handler = new PaymentTriggerHandler_TDTM();
