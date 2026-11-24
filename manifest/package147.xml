@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>CreateNextOpportunityBatch</members>
+        <members>CreateNextOpportunityBatchTest</members>
+        <members>FixRecurringOpportunityDatesBatch</members>
+        <members>FixRecurringOpportunityDatesBatchTest</members>
+        <members>GenerateHistoricOppsBatch</members>
+        <members>GenerateHistoricOppsBatchTest</members>
+        <members>Utils</members>
+        <members>UtilsTest</members>
+        <name>ApexClass</name>
+    </types>
+    <version>67.0</version>
+</Package>

@@ -36,12 +36,15 @@ global class CreateNextOpportunityBatch implements Database.Batchable<sObject>,S
             }
         }
         
+        //SFEUCMSD-147 The Day of Month of each recurring donation sets the day of the next opportunity
+        Map<Id, npe03__Recurring_Donation__c> rdsById = new Map<Id, npe03__Recurring_Donation__c>([SELECT Id, npsp__Day_of_Month__c FROM npe03__Recurring_Donation__c WHERE Id IN :rdIds]);
+
         //Creating rds
         for (npe03__Recurring_Donation__c rd : scope) {
             if (!rdIdsToSkip.contains(rd.Id)) {
                 Opportunity baseOpportunity = getLastOpportunityForCurrentMonth(rd.Id, opps);
                 if (baseOpportunity != null) {
-                	baseOpportunity = createNewOpportunityForNextMonth(baseOpportunity);
+                	baseOpportunity = createNewOpportunityForNextMonth(baseOpportunity, rdsById.get(rd.Id)?.npsp__Day_of_Month__c); //SFEUCMSD-147
                     newOpps.add(baseOpportunity);
                 }
             }
@@ -63,13 +66,20 @@ global class CreateNextOpportunityBatch implements Database.Batchable<sObject>,S
     }
         
     global Opportunity createNewOpportunityForNextMonth(Opportunity baseOpportunity) {
+        return createNewOpportunityForNextMonth(baseOpportunity, null); //SFEUCMSD-147
+    }
+
+    //SFEUCMSD-147 Without a Day of Month the day of the base opportunity is kept, as before
+    global Opportunity createNewOpportunityForNextMonth(Opportunity baseOpportunity, String dayOfMonth) {
         Opportunity newOpp = new Opportunity();
         newOpp.AccountId = baseOpportunity.AccountId;
         newOpp.RecordTypeId	= baseOpportunity.RecordTypeId;
         newOpp.Name	= getNewConsecutiveOnNumber(getNewNameBasedOnCloseDate(baseOpportunity.Name, baseOpportunity.CloseDate));
         newOpp.StageName = 'Pledged'; //baseOpportunity.StageName;
         newOpp.Amount = baseOpportunity.Amount;
-        newOpp.CloseDate = baseOpportunity.CloseDate.addMonths(1);
+        //SFEUCMSD-147 The day comes from the Day of Month, so a Last_Day or 31st donation goes back to the 31st after a 30 day month instead of staying on the 30th
+        Date nextMonth = baseOpportunity.CloseDate.addMonths(1);
+        newOpp.CloseDate = Utils.getInstallmentDate(nextMonth.year(), nextMonth.month(), Utils.getRecurringDayOfMonth(dayOfMonth, baseOpportunity.CloseDate));
         newOpp.Type = baseOpportunity.Type;
         newOpp.ContactId = baseOpportunity.ContactId;
         newOpp.npe03__Recurring_Donation__c = baseOpportunity.npe03__Recurring_Donation__c;

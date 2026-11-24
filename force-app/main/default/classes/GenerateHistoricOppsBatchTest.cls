@@ -281,6 +281,41 @@ private class GenerateHistoricOppsBatchTest { //SFESWCSD-113
         Assert.areEqual('Completed', [SELECT Status FROM AsyncApexJob WHERE Id = :jobId].Status, 'The batch runs with the stage overload.');
     }
 
+    //SFEUCMSD-147 A Last_Day donation established on the 31st gets one opportunity per month on the last day of each month, none rolls into the next month
+    @IsTest
+    static void execute_lastDayOfMonth_createsOneOpportunityPerMonthOnItsLastDay() {
+        Account account = createAccount('947');
+        Date establishedDate = Date.newInstance(2025, 5, 31);
+        Date nextPaymentDate = Date.newInstance(2025, 10, 31);
+        Test.startTest();
+        //SFEUCMSD-147 Day of Month allows 1 to 30 and Last_Day, NPSP only accepts Last_Day on a donation without schedule fields in tests
+        npe03__Recurring_Donation__c recurringDonation = new npe03__Recurring_Donation__c(
+                npe03__Organization__c = account.Id,
+                npe03__Amount__c = 50,
+                npe03__Open_Ended_Status__c = 'Open',
+                Donation_Type__c = 'Recurring Donation', //SFEUCMSD-147 required on the recurring donation in Ethiopia
+                Donor_Type__c = 'Corporate'
+        );
+        insert recurringDonation;
+        setRecurringDonationDates(recurringDonation, establishedDate, nextPaymentDate);
+        Opportunity source = replaceGeneratedOpportunitiesWithSource(recurringDonation, account, establishedDate, 'Prospecting');
+        //SFEUCMSD-147 NPSP parses the Day of Month as a number when the dates change in tests, so Last_Day is set alone at the end
+        update new npe03__Recurring_Donation__c(Id = recurringDonation.Id, npsp__Day_of_Month__c = Utils.LAST_DAY_OF_MONTH);
+        new GenerateHistoricOppsBatch(new Set<Id>{ recurringDonation.Id }).execute(null, new List<Id>{ recurringDonation.Id });
+        Test.stopTest();
+
+        Set<Date> closeDates = new Set<Date>();
+        for (Opportunity opportunity : [SELECT CloseDate FROM Opportunity WHERE npe03__Recurring_Donation__c = :recurringDonation.Id AND Id != :source.Id]) {
+            Assert.isFalse(closeDates.contains(opportunity.CloseDate), 'Only one opportunity per month is created: ' + opportunity.CloseDate);
+            closeDates.add(opportunity.CloseDate);
+        }
+        Set<Date> expectedDates = new Set<Date>{
+                Date.newInstance(2025, 6, 30), Date.newInstance(2025, 7, 31), Date.newInstance(2025, 8, 31),
+                Date.newInstance(2025, 9, 30), Date.newInstance(2025, 10, 31)
+        };
+        Assert.areEqual(expectedDates, closeDates, 'June and September fall on the 30th, the other months on the 31st.');
+    }
+
     //SFESWCSD-113 NPSP resets the dates when the recurring donation is inserted, so they are set again afterwards
     private static void setRecurringDonationDates(
             npe03__Recurring_Donation__c recurringDonation,

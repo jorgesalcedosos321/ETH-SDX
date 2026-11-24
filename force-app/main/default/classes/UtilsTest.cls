@@ -170,6 +170,65 @@ public class UtilsTest {
         Test.stopTest();
     }
 
+    //SFEUCMSD-147
+    @IsTest
+    static void getRecurringDayOfMonth_lastDay_returns31() {
+        Assert.areEqual(31, Utils.getRecurringDayOfMonth(Utils.LAST_DAY_OF_MONTH, Date.newInstance(2025, 5, 15)), 'Last_Day is the 31st, clamped later to the month end.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getRecurringDayOfMonth_numericDay_returnsThatDay() {
+        Assert.areEqual(15, Utils.getRecurringDayOfMonth('15', Date.newInstance(2025, 5, 31)), 'A numeric Day of Month wins over the fallback date.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getRecurringDayOfMonth_blankDay_returnsFallbackDay() {
+        Assert.areEqual(31, Utils.getRecurringDayOfMonth(null, Date.newInstance(2025, 5, 31)), 'A blank Day of Month takes the day of the fallback date.');
+        Assert.isNull(Utils.getRecurringDayOfMonth('', null), 'Without a Day of Month and a fallback date there is no day.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getInstallmentDate_day31InThirtyDayMonth_returnsThe30th() {
+        Assert.areEqual(Date.newInstance(2025, 6, 30), Utils.getInstallmentDate(2025, 6, 31), 'June has 30 days, so the 31st falls on the 30th and not on July 1st.');
+        Assert.areEqual(Date.newInstance(2025, 9, 30), Utils.getInstallmentDate(2025, 9, 31), 'September has 30 days.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getInstallmentDate_day31InFebruary_returnsLastDayOfFebruary() {
+        Assert.areEqual(Date.newInstance(2026, 2, 28), Utils.getInstallmentDate(2026, 2, 31), 'February falls on the 28th in a common year and not on March 3rd.');
+        Assert.areEqual(Date.newInstance(2028, 2, 29), Utils.getInstallmentDate(2028, 2, 31), 'February falls on the 29th in a leap year.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getInstallmentDate_day30InFebruary_returnsLastDayOfFebruary() {
+        Assert.areEqual(Date.newInstance(2026, 2, 28), Utils.getInstallmentDate(2026, 2, 30), 'Day 30 falls on February 28th in a common year and not on March 2nd.');
+        Assert.areEqual(Date.newInstance(2028, 2, 29), Utils.getInstallmentDate(2028, 2, 30), 'Day 30 falls on February 29th in a leap year.');
+        Assert.areEqual(Date.newInstance(2026, 2, 28), Utils.getInstallmentDate(2026, 2, 29), 'Day 29 falls on February 28th in a common year.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getInstallmentDate_day31InThirtyOneDayMonth_returnsThe31st() {
+        Assert.areEqual(Date.newInstance(2025, 7, 31), Utils.getInstallmentDate(2025, 7, 31), 'A 31 day month keeps the 31st.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getInstallmentDate_dayWithinMonth_keepsTheDay() {
+        Assert.areEqual(Date.newInstance(2025, 6, 15), Utils.getInstallmentDate(2025, 6, 15), 'A day inside the month is kept.');
+    }
+
+    //SFEUCMSD-147
+    @IsTest
+    static void getInstallmentDate_nullDay_returnsLastDayOfMonth() {
+        Assert.areEqual(Date.newInstance(2025, 6, 30), Utils.getInstallmentDate(2025, 6, null), 'Without a day the last day of the month is used.');
+    }
+
     static testMethod void testValidPicklistValue() {
         // Uses standard object and field to check picklist value (e.g., Case.Status)
         String objectApi = 'Case';

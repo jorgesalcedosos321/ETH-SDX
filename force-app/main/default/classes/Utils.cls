@@ -44,7 +44,28 @@ public class Utils {
         } 
         return Date.today().day() + '';
     }
-    
+
+    //SFEUCMSD-147 Recurring donation Day of Month value meaning the last day of every month
+    public static final String LAST_DAY_OF_MONTH = 'Last_Day';
+
+    //SFEUCMSD-147 Installment day of a recurring donation, Last_Day is 31 and a blank or unknown value takes the day of the fallback date
+    public static Integer getRecurringDayOfMonth(String dayOfMonth, Date fallbackDate) {
+        if (dayOfMonth == LAST_DAY_OF_MONTH) {
+            return 31;
+        }
+        if (String.isNotBlank(dayOfMonth) && dayOfMonth.isNumeric()) {
+            return Integer.valueOf(dayOfMonth);
+        }
+        return fallbackDate?.day();
+    }
+
+    //SFEUCMSD-147 Date of an installment in the given month, a day past the end of the month falls on its last day instead of rolling into the next month
+    public static Date getInstallmentDate(Integer year, Integer month, Integer dayOfMonth) {
+        Integer daysInMonth = Date.daysInMonth(year, month);
+        Integer day = dayOfMonth == null || dayOfMonth > daysInMonth ? daysInMonth : Math.max(dayOfMonth, 1);
+        return Date.newInstance(year, month, day);
+    }
+
     
     public static Boolean isValidPicklistValue(String objectApiName, String fieldApiName, String valueToCheck) {
         // Describe the object and field

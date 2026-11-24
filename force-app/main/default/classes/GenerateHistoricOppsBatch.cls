@@ -100,7 +100,8 @@ global class GenerateHistoricOppsBatch implements Database.Batchable<SObject>, D
         for (Id recordId : numOfMonthsMap.keySet()) {
             npe03__Recurring_Donation__c rdToCheck = numOfMonthsMap.get(recordId);
             Integer numberOfMonths = rdToCheck.npe03__Date_Established__c.monthsBetween(rdToCheck.npe03__Next_Payment_Date__c);
-            Integer dayOfMonth = String.isNotBlank(rdToCheck.npsp__Day_of_Month__c) && rdToCheck.npsp__Day_of_Month__c.isNumeric() ? Integer.valueOf(rdToCheck.npsp__Day_of_Month__c) : rdToCheck.npe03__Date_Established__c.day();
+            //SFEUCMSD-147 Last_Day is read as 31 and clamped below, so it never takes a day past the end of a short month
+            Integer dayOfMonth = Utils.getRecurringDayOfMonth(rdToCheck.npsp__Day_of_Month__c, rdToCheck.npe03__Date_Established__c);
             for(Integer i=1; i <= numberOfMonths; i++){
                 Boolean opportunityExists = existOpportunity(rdToCheck, opps, i);
 
@@ -113,7 +114,8 @@ global class GenerateHistoricOppsBatch implements Database.Batchable<SObject>, D
                 opp = oppsByRDMap.get(recordId).clone(false, false, false, false);
                 opp.StageName = stageName; //SFESWCSD-113
                 opp.CloseDate = rdToCheck.npe03__Date_Established__c.addMonths(i); //oppsByRDMap.get(recordId).CloseDate.addMonths(i);
-                opp.CloseDate = Date.newInstance(opp.CloseDate.year(), opp.CloseDate.month(), dayOfMonth);
+                //SFEUCMSD-147 Day 31 in a 30 day month (or February) falls on the last day of that month instead of the first day of the next one
+                opp.CloseDate = Utils.getInstallmentDate(opp.CloseDate.year(), opp.CloseDate.month(), dayOfMonth);
                 //opp.Name = oppsByRDMap.get(recordId).Name.substringBefore(keyWord) + ' ' + keyWord + ' ' + Datetime.newInstance(opp.CloseDate.year(),opp.CloseDate.month(),opp.CloseDate.day()).format('yyyy-MM-dd');
                 opp.Name = oppsByRDMap.get(recordId).Name.substringBefore(keyWord) + ' ' + keyWord + ' ' + Datetime.newInstance(opp.CloseDate.year(),opp.CloseDate.month(),opp.CloseDate.day()).format('dd/MM/yyyy'); //SFESWCSD-113 name date as dd/MM/yyyy, same as CreateNextOpportunityBatch
                 System.debug('####Opp ' + opp);
